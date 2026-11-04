@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#FBF8F2; font-family:"Microsoft YaHei",sans-serif; -webkit-font-smoothing:antialiased; font-feature-settings:"tnum"; }
+  .page { width:1080px; }
+
+  .hero {
+    background:linear-gradient(150deg,#3A1512 0%,#5A241C 46%,#7A3025 100%);
+    padding:54px 64px 46px; position:relative; overflow:hidden;
+  }
+  .hero::after {
+    content:""; position:absolute; right:-140px; top:-140px; width:440px; height:440px;
+    border-radius:50%; background:radial-gradient(circle,rgba(240,160,138,.26) 0%,rgba(240,160,138,0) 68%);
+  }
+  .kicker { font-size:15px; letter-spacing:.34em; color:#D89B8C; font-weight:600; margin-bottom:20px; }
+  .h1 { font-size:60px; font-weight:700; color:#fff; letter-spacing:-.02em; line-height:1.08; }
+  .h1 em { font-style:normal; color:#FFC9B8; }
+  .sub { font-size:19px; color:#E0B4A8; margin-top:15px; }
+
+  .urgent {
+    position:relative; z-index:2; margin-top:36px;
+    background:rgba(255,255,255,.09); border:1px solid rgba(255,255,255,.16);
+    border-radius:15px; padding:24px 28px;
+  }
+  .urgent .k { font-size:14px; color:#E0B4A8; letter-spacing:.1em; margin-bottom:12px; }
+  .urgent .v { font-size:27px; color:#fff; font-weight:700; line-height:1.5; letter-spacing:-.01em; }
+  .urgent .v b { color:#FFC9B8; }
+
+  .sec { padding:44px 64px 0; }
+  .sectitle { display:flex; align-items:center; gap:14px; margin-bottom:26px; }
+  .sectitle .bar { width:5px; height:26px; background:#C8553D; border-radius:3px; }
+  .sectitle h2 { font-size:30px; font-weight:700; color:#1E3A34; letter-spacing:-.01em; }
+  .sectitle .note { font-size:15px; color:#A29A8C; margin-left:auto; }
+
+  .card {
+    border:1.5px solid #E3DCCE; border-radius:16px;
+    padding:26px 28px; margin-bottom:18px; background:#FFFDF8;
+  }
+  .card.hot { border-color:#E8B5A5; background:#FFF8F5; }
+  .ch { display:flex; align-items:center; gap:13px; margin-bottom:6px; }
+  .ch .ic {
+    width:38px; height:38px; border-radius:10px; flex:none;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .ch h3 { font-size:24px; color:#1E3A34; font-weight:700; letter-spacing:-.01em; }
+  .ch .lvl {
+    margin-left:auto; font-size:12.5px; padding:5px 11px; border-radius:20px;
+    font-weight:700; letter-spacing:.05em;
+  }
+  .lvl.a { color:#A8442F; background:#FBE9E3; }
+  .lvl.b { color:#96731F; background:#F8F0DC; }
+  .lvl.c { color:#3F5F7A; background:#EAF0F5; }
+
+  .steps { margin-top:16px; }
+  .step {
+    display:grid; grid-template-columns:30px 1fr; gap:13px;
+    padding:9px 0; align-items:baseline;
+  }
+  .step .no {
+    font-size:15px; font-weight:700; color:#C8553D;
+    width:24px; height:24px; border-radius:50%; background:#FBEDE7;
+    display:flex; align-items:center; justify-content:center; flex:none;
+  }
+  .step .tx { font-size:18px; color:#3A4A45; line-height:1.6; }
+  .step .tx b { color:#1E3A34; font-weight:700; }
+  .step .tx .tel {
+    font-family:"Consolas",monospace; font-size:19px; font-weight:700;
+    color:#C8553D; letter-spacing:.02em;
+  }
+  .step .tx .hint { font-size:14.5px; color:#A29A8C; }
+
+  /* 电话区 */
+  .tels { margin:40px 64px 0; }
+  .telgrid { display:grid; grid-template-columns:repeat(3,1fr); gap:13px; margin-top:18px; }
+  .telc {
+    background:#fff; border:1.5px solid #E3DCCE; border-radius:13px;
+    padding:18px 20px;
+  }
+  .telc .n { font-size:14.5px; color:#7C7568; margin-bottom:9px; letter-spacing:.02em; }
+  .telc .num { font-family:"Consolas",monospace; font-size:27px; font-weight:700; color:#1E3A34; letter-spacing:.01em; }
+  .telc .num.small { font-size:20px; }
+  .telc .d { font-size:13px; color:#B0A899; margin-top:7px; }
+
+  .alert {
+    margin:40px 64px 0; background:linear-gradient(100deg,#FDF1EC,#FAF3E4);
+    border-left:5px solid #C89B3C; border-radius:0 14px 14px 0; padding:24px 30px;
+  }
+  .alert .t { display:flex; align-items:center; gap:10px; font-size:19px; color:#96731F; font-weight:700; margin-bottom:13px; }
+  .alert ul { list-style:none; }
+  .alert li { font-size:16.5px; color:#6A5348; line-height:1.75; padding-left:18px; position:relative; }
+  .alert li::before { content:""; position:absolute; left:0; top:11px; width:6px; height:6px; border-radius:50%; background:#C8553D; }
+  .alert li b { color:#8A3D2B; }
+
+  .foot { margin-top:38px; padding:24px 64px 38px; border-top:1px solid #E8E2D6; }
+  .foot .src { font-size:13.5px; color:#A29A8C; line-height:1.85; }
+  .foot .src b { color:#8D8577; }
+  .foot .meta { display:flex; justify-content:space-between; margin-top:16px; padding-top:15px; border-top:1px dashed #E8E2D6; }
+  .foot .meta div { font-size:13.5px; color:#B5AD9E; letter-spacing:.05em; }
+</style>
+
+<div class="page">
+  <div class="hero">
+    <div class="kicker">ONTRIP MODE · EMERGENCY</div>
+    <div class="h1">出事了<br><em>先做这几步</em></div>
+    <div class="sub">杭州旅途中遇到问题，按场景直接跳到对应卡片</div>
+
+    <div class="urgent">
+      <div class="k">如果你只有一个电话能打</div>
+      <div class="v">打 <b>12345</b>（杭州市政务热线，24 小时）<br>旅游投诉、消费纠纷、寻人找物都由它转办。</div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sectitle">
+      <div class="bar"></div>
+      <h2>四种常见场景</h2>
+      <div class="note">按紧急度排</div>
+    </div>
+
+    <div class="card hot">
+      <div class="ch">
+        <div class="ic" style="background:#FBE9E3">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C8553D" stroke-width="2.2" stroke-linecap="round">
+            <path d="M3 12h4l2-5 4 10 2-5h6"/>
+          </svg>
+        </div>
+        <h3>证件丢失 / 人身安全</h3>
+        <div class="lvl a">最高优先</div>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="no">1</div><div class="tx">打 <span class="tel">110</span> 报案，拿<b>报案回执</b>。没有回执，机场和酒店都办不了后续。</div></div>
+        <div class="step"><div class="no">2</div><div class="tx">身份证丢了打 <span class="tel">12345</span> 问<b>临时身份证明</b>办理点，或用「浙里办」APP 申领电子凭证。</div></div>
+        <div class="step"><div class="no">3</div><div class="tx">联系酒店与航司说明情况，<span class="hint">回执编号先拍照存好</span></div></div>
+      </div>
+    </div>
+
+    <div class="card hot">
+      <div class="ch">
+        <div class="ic" style="background:#FBE9E3">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C8553D" stroke-width="2.2" stroke-linecap="round">
+            <path d="M12 3v18M5 8h14M5 16h14"/>
+          </svg>
+        </div>
+        <h3>身体不适 / 受伤</h3>
+        <div class="lvl a">最高优先</div>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="no">1</div><div class="tx">打 <span class="tel">120</span>，说清<b>具体位置</b>（景区里报最近的门、桥或塔）。</div></div>
+        <div class="step"><div class="no">2</div><div class="tx">就近医院：<b>浙大一院</b>（庆春路79号）、<b>浙大二院</b>（解放路88号），都在湖滨步行圈内。</div></div>
+        <div class="step"><div class="no">3</div><div class="tx">保留所有票据，回国后走保险理赔。<span class="hint">急诊病历要盖章</span></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ch">
+        <div class="ic" style="background:#F8F0DC">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C89B3C" stroke-width="2.2" stroke-linecap="round">
+            <path d="M2 12h20M12 2v20"/>
+          </svg>
+        </div>
+        <h3>航班延误 / 取消</h3>
+        <div class="lvl b">次高</div>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="no">1</div><div class="tx">先查航司 App 或打 <span class="tel">96299</span>（萧山机场问讯，24 小时人工）确认改签口径。</div></div>
+        <div class="step"><div class="no">2</div><div class="tx"><b>不要急着退票</b>：延误超 4 小时可要求改签或安排住宿，退票就放弃了这个权利。</div></div>
+        <div class="step"><div class="no">3</div><div class="tx">市区回机场：地铁 7 号线吴山广场 → 机场 <span class="tel">¥8</span>，末班约 23:07，错过只能打车。</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="ch">
+        <div class="ic" style="background:#EAF0F5">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5B7C99" stroke-width="2.2" stroke-linecap="round">
+            <path d="M4 7h16M4 12h16M4 17h10"/>
+          </svg>
+        </div>
+        <h3>被宰 / 吃到变质 / 打车绕路</h3>
+        <div class="lvl c">常规</div>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="no">1</div><div class="tx"><b>先拍照留证</b>：菜单、账单、车牌、计价器。没有证据，投诉基本无解。</div></div>
+        <div class="step"><div class="no">2</div><div class="tx">出租车绕路 / 拒载打 <span class="tel">12328</span>（交通运输监督热线，24 小时）。</div></div>
+        <div class="step"><div class="no">3</div><div class="tx">餐饮与住宿纠纷打 <span class="tel">12345</span>，说明「旅游消费投诉」，会转文旅或市场监管。</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tels">
+    <div class="sectitle">
+      <div class="bar"></div>
+      <h2>存一下这几个号</h2>
+      <div class="note">全部已核实</div>
+    </div>
+    <div class="telgrid">
+      <div class="telc"><div class="n">杭州政务热线</div><div class="num">12345</div><div class="d">24h · 旅游投诉总入口</div></div>
+      <div class="telc"><div class="n">萧山机场问讯</div><div class="num small">0571-96299</div><div class="d">24h · 失物按 5 转</div></div>
+      <div class="telc"><div class="n">杭州地铁服务</div><div class="num small">0571-96600</div><div class="d">7:00–21:00 · 工作日</div></div>
+      <div class="telc"><div class="n">交通运输监督</div><div class="num">12328</div><div class="d">24h · 出租车投诉</div></div>
+      <div class="telc"><div class="n">急救</div><div class="num">120</div><div class="d">说清最近的地标</div></div>
+      <div class="telc"><div class="n">报警</div><div class="num">110</div><div class="d">要回执编号</div></div>
+    </div>
+  </div>
+
+  <div class="alert">
+    <div class="t">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#C89B3C" stroke-width="2.4" stroke-linecap="round">
+        <path d="M12 9v5M12 17.5v.5"/><circle cx="12" cy="12" r="9"/>
+      </svg>
+      两个已经过时的号，别再打
+    </div>
+    <ul>
+      <li><b>12301</b>（全国旅游服务热线）已于 2021 年底取消，旅游投诉统一改由 <b>12345</b> 接听。</li>
+      <li><b>12318</b>（文化市场举报）同样已并入 12345。网上很多攻略还在写这两个号，打过去是空号或忙音。</li>
+    </ul>
+  </div>
+
+  <div class="foot">
+    <div class="src">
+      <b>号码来源</b>　96299：杭州萧山机场官网「常用电话」页（hzairport.com/about/telephone.html，含 24 小时人工客服公告）· 96600：杭州地铁官方公告与官方微博 · 12345 接并 12301/12318：文化和旅游部办公厅 2021-11-12 通知（gov.cn）· 12328：交通运输部《12328 交通运输服务监督热线管理办法》
+    </div>
+    <div class="meta">
+      <div>核实日期 2026-11-01</div>
+      <div>ONTRIP MODE</div>
+    </div>
+  </div>
+</div>
+</html>

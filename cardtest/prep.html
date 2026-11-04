@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#FBF8F2; font-family:"Microsoft YaHei",sans-serif; -webkit-font-smoothing:antialiased; font-feature-settings:"tnum"; }
+  .page { width:1080px; }
+
+  .hero {
+    background:linear-gradient(150deg,#16302B 0%,#1E3A34 48%,#2A4F46 100%);
+    padding:54px 64px 46px; position:relative; overflow:hidden;
+  }
+  .hero::after {
+    content:""; position:absolute; right:-130px; top:-150px; width:430px; height:430px;
+    border-radius:50%; background:radial-gradient(circle,rgba(91,124,153,.26) 0%,rgba(91,124,153,0) 68%);
+  }
+  .kicker { font-size:15px; letter-spacing:.34em; color:#7FA398; font-weight:600; margin-bottom:20px; }
+  .h1 { font-size:58px; font-weight:700; color:#fff; letter-spacing:-.02em; line-height:1.08; }
+  .h1 em { font-style:normal; color:#8FB2CE; }
+  .sub { font-size:19px; color:#A9C4BB; margin-top:15px; }
+
+  .countdown {
+    position:relative; z-index:2; margin-top:36px;
+    display:flex; align-items:center; gap:22px;
+    background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.13);
+    border-radius:15px; padding:22px 26px;
+  }
+  .cd-left .k { font-size:14px; color:#8FB0A6; letter-spacing:.1em; margin-bottom:7px; }
+  .cd-left .v { font-size:34px; color:#fff; font-weight:700; letter-spacing:-.02em; }
+  .cd-right { margin-left:auto; text-align:right; }
+  .cd-right .k { font-size:14px; color:#8FB0A6; letter-spacing:.1em; margin-bottom:7px; }
+  .cd-right .v { font-size:34px; color:#D8B968; font-weight:700; letter-spacing:-.02em; }
+
+  .sec { padding:44px 64px 0; }
+  .sectitle { display:flex; align-items:center; gap:14px; margin-bottom:8px; }
+  .sectitle .bar { width:5px; height:26px; background:#5B7C99; border-radius:3px; }
+  .sectitle h2 { font-size:30px; font-weight:700; color:#1E3A34; letter-spacing:-.01em; }
+  .sectitle .note { font-size:15px; color:#A29A8C; margin-left:auto; }
+
+  .grp { margin-top:24px; }
+  .grphead {
+    display:flex; align-items:baseline; gap:12px;
+    padding-bottom:11px; border-bottom:2px solid #1E3A34;
+  }
+  .grphead .g { font-size:19px; color:#1E3A34; font-weight:700; letter-spacing:.01em; }
+  .grphead .cnt { font-size:14px; color:#A29A8C; }
+  .grphead .dl { margin-left:auto; font-size:13px; color:#C8553D; font-weight:700; letter-spacing:.04em; }
+  .grphead .dl.ok { color:#2F7D5E; }
+
+  .item {
+    display:grid; grid-template-columns:30px 1fr auto;
+    align-items:start; gap:12px;
+    padding:13px 0; border-bottom:1px solid #EDE7DA;
+  }
+  .item:last-child { border-bottom:none; }
+  .box {
+    width:19px; height:19px; border:2px solid #C4BBAA; border-radius:5px;
+    margin-top:2px; flex:none;
+  }
+  .box.must { border-color:#C8553D; background:#FBEDE7; }
+  .it .n { font-size:18.5px; color:#2E3D38; line-height:1.45; }
+  .it .n b { font-weight:700; color:#1E3A34; }
+  .it .n span { font-size:14.5px; color:#A29A8C; margin-left:8px; }
+  .it .tag {
+    font-size:13px; padding:4px 10px; border-radius:20px; font-weight:600;
+    white-space:nowrap; letter-spacing:.02em;
+  }
+  .tag.red { color:#A8442F; background:#FBE9E3; }
+  .tag.blue { color:#3F5F7A; background:#EAF0F5; }
+  .tag.green { color:#2F7D5E; background:#EAF3EC; }
+  .tag.gray { color:#7C7568; background:#F1EDE3; }
+
+  .alert {
+    margin:42px 64px 0; background:linear-gradient(100deg,#FDF1EC,#FAF3E4);
+    border-left:5px solid #C8553D; border-radius:0 14px 14px 0; padding:24px 30px;
+  }
+  .alert .t { display:flex; align-items:center; gap:10px; font-size:19px; color:#A8442F; font-weight:700; margin-bottom:13px; }
+  .alert ul { list-style:none; }
+  .alert li { font-size:16.5px; color:#6A5348; line-height:1.75; padding-left:18px; position:relative; }
+  .alert li::before { content:""; position:absolute; left:0; top:11px; width:6px; height:6px; border-radius:50%; background:#C8553D; }
+  .alert li b { color:#8A3D2B; }
+
+  .foot { margin-top:38px; padding:24px 64px 38px; border-top:1px solid #E8E2D6; }
+  .foot .src { font-size:13.5px; color:#A29A8C; line-height:1.85; }
+  .foot .src b { color:#8D8577; }
+  .foot .meta { display:flex; justify-content:space-between; margin-top:16px; padding-top:15px; border-top:1px dashed #E8E2D6; }
+  .foot .meta div { font-size:13.5px; color:#B5AD9E; letter-spacing:.05em; }
+</style>
+
+<div class="page">
+  <div class="hero">
+    <div class="kicker">PREP MODE · CHECKLIST</div>
+    <div class="h1">杭州行前<br><em>准备清单</em></div>
+    <div class="sub">11月10日出发 &nbsp;·&nbsp; 2 人 &nbsp;·&nbsp; 出发前 9 天</div>
+
+    <div class="countdown">
+      <div class="cd-left">
+        <div class="k">最紧急的一件</div>
+        <div class="v">11/3 早 8:00 抢灵隐预约</div>
+      </div>
+      <div class="cd-right">
+        <div class="k">距现在</div>
+        <div class="v">2 天</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sectitle">
+      <div class="bar"></div>
+      <h2>按截止日期排</h2>
+      <div class="note">红框 = 错过就补不回来</div>
+    </div>
+
+    <div class="grp">
+      <div class="grphead">
+        <div class="g">必须预约的</div>
+        <div class="cnt">2 项</div>
+        <div class="dl">11/3 前</div>
+      </div>
+
+      <div class="item">
+        <div class="box must"></div>
+        <div class="it"><div class="n"><b>灵隐飞来峰</b>　实名预约<span>免费，但要预约</span></div></div>
+        <div class="tag red">11/3 08:00 抢</div>
+      </div>
+
+      <div class="item">
+        <div class="box must"></div>
+        <div class="it"><div class="n"><b>酒店</b>　11/10 入住 · 双床 · 免费取消<span>先订可退的</span></div></div>
+        <div class="tag red">11/3 前订</div>
+      </div>
+    </div>
+
+    <div class="grp">
+      <div class="grphead">
+        <div class="g">落地交通</div>
+        <div class="cnt">1 项</div>
+        <div class="dl">11/9 前</div>
+      </div>
+
+      <div class="item">
+        <div class="box must"></div>
+        <div class="it"><div class="n"><b>机场大巴 / 地铁</b>　确认落地时段还有没有班次<span>7 号线末班约 23:07</span></div></div>
+        <div class="tag red">11/9 查</div>
+      </div>
+    </div>
+
+    <div class="grp">
+      <div class="grphead">
+        <div class="g">证件与钱</div>
+        <div class="cnt">4 项</div>
+        <div class="dl">11/9 前</div>
+      </div>
+
+      <div class="item">
+        <div class="box must"></div>
+        <div class="it"><div class="n"><b>身份证</b>　2 人<span>酒店、景区、机场都用</span></div></div>
+        <div class="tag red">随身</div>
+      </div>
+
+      <div class="item">
+        <div class="box"></div>
+        <div class="it"><div class="n"><b>预约用的同一证件</b>　和抢票时一致<span>同一证件当日限进 1 次</span></div></div>
+        <div class="tag gray">重要</div>
+      </div>
+
+      <div class="item">
+        <div class="box"></div>
+        <div class="it"><div class="n"><b>支付宝 / 微信</b>　开通地铁乘车码<span>地铁不支持刷银联</span></div></div>
+        <div class="tag blue">提前开</div>
+      </div>
+
+      <div class="item">
+        <div class="box"></div>
+        <div class="it"><div class="n"><b>现金 200 元</b>　零钞<span>老面馆、小吃摊偶发只收现金</span></div></div>
+        <div class="tag gray">备用</div>
+      </div>
+    </div>
+
+    <div class="grp">
+      <div class="grphead">
+        <div class="g">穿衣（11 月中旬杭州）</div>
+        <div class="cnt">4 项</div>
+        <div class="dl">按 12–22°C 备</div>
+      </div>
+
+      <div class="item">
+        <div class="box must"></div>
+        <div class="it"><div class="n"><b>薄外套 + 长袖</b>　早晚温差大<span>西湖边风比市区凉</span></div></div>
+        <div class="tag blue">必带</div>
+      </div>
+
+      <div class="item">
+        <div class="box must"></div>
+        <div class="it"><div class="n"><b>舒服的鞋</b>　每天走 1.5 万步起<span>苏堤白堤全靠腿</span></div></div>
+        <div class="tag blue">必带</div>
+      </div>
+
+      <div class="item">
+        <div class="box"></div>
+        <div class="it"><div class="n"><b>折叠伞</b>　11 月仍有雨<span>参考历史同期</span></div></div>
+        <div class="tag gray">建议</div>
+      </div>
+
+      <div class="item">
+        <div class="box"></div>
+        <div class="it"><div class="n"><b>薄围巾</b>　坐船时风大<span>游船 40 分钟露天</span></div></div>
+        <div class="tag gray">可选</div>
+      </div>
+    </div>
+
+    <div class="grp">
+      <div class="grphead">
+        <div class="g">吃饭前要做的</div>
+        <div class="cnt">2 项</div>
+        <div class="dl ok">11/10 当天</div>
+      </div>
+
+      <div class="item">
+        <div class="box"></div>
+        <div class="it"><div class="n"><b>外婆家 in77</b>　到店取号<span>饭点排队 40 分钟起</span></div></div>
+        <div class="tag green">取号</div>
+      </div>
+
+      <div class="item">
+        <div class="box"></div>
+        <div class="it"><div class="n"><b>楼外楼</b>　电话确认是否需订位<span>孤山路店，景区内</span></div></div>
+        <div class="tag green">0571-87969023</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert">
+    <div class="t">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#C8553D" stroke-width="2.4" stroke-linecap="round">
+        <path d="M12 9v5M12 17.5v.5"/><circle cx="12" cy="12" r="9"/>
+      </svg>
+      最容易翻车的两件事
+    </div>
+    <ul>
+      <li><b>灵隐不能当天约。</b>每天 8:00 放号、最早提前 7 天、最少提前 1 天。11/10 入园，11/3 早 8:00 是唯一窗口。一个手机号最多约 5 人。</li>
+      <li><b>穿错鞋。</b>这趟 5 天有 3 天在西湖边走路，苏堤单程 2.8 公里。别穿新鞋。</li>
+    </ul>
+  </div>
+
+  <div class="foot">
+    <div class="src">
+      <b>依据</b>　灵隐预约规则：杭州市政协网 2025-11-19 免票通告 + 「杭州灵隐飞来峰」小程序规则 · 地铁末班：杭州地铁官网 · 天气参考：历史同期气候，<b>非实时预报</b>，出发前 3 天需重查
+    </div>
+    <div class="meta">
+      <div>编制基准日 2026-11-01</div>
+      <div>PREP MODE</div>
+    </div>
+  </div>
+</div>
+</html>

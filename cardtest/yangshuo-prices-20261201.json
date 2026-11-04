@@ -1,0 +1,106 @@
+{
+  "source": "https://www.trip.com/hotels/list?city=871&checkin=2026-12-01&checkout=2026-12-03&adult=2&curr=CNY&currency=CNY",
+  "city": "Yangshuo",
+  "dates": [
+    "20261201",
+    "20261203"
+  ],
+  "rows": [
+    {
+      "hotel_id": "24036581",
+      "name": "(SSR 未给店名)",
+      "room": "Mushan Twin Room",
+      "per_night": "CNY 497",
+      "per_night_num": 497.0,
+      "total": "CNY 1,054"
+    },
+    {
+      "hotel_id": "67310293",
+      "name": "LS Hotel (Guilin Liangsu)",
+      "room": "Panorama Room - with View (Building 7)",
+      "per_night": "CNY 1,328",
+      "per_night_num": 1328.0,
+      "total": "CNY 2,816"
+    },
+    {
+      "hotel_id": "659879",
+      "name": "Xitang River View Holiday Hotel",
+      "room": "Standard Room 18㎡ (No Window)",
+      "per_night": "CNY 166",
+      "per_night_num": 166.0,
+      "total": "CNY 352"
+    },
+    {
+      "hotel_id": "2531901",
+      "name": "Waterside Boutique Hotel",
+      "room": "?",
+      "per_night": "CNY 554",
+      "per_night_num": 554.0,
+      "total": "CNY 1,174"
+    },
+    {
+      "hotel_id": "130470814",
+      "name": "GuYu · Mountain View Hotel",
+      "room": "?",
+      "per_night": "CNY 268",
+      "per_night_num": 268.0,
+      "total": "CNY 567"
+    },
+    {
+      "hotel_id": "70490173",
+      "name": "(SSR 未给店名)",
+      "room": "Song Yin Mountain-View Twin Room (Karst Peaks View)",
+      "per_night": "CNY 421",
+      "per_night_num": 421.0,
+      "total": "CNY 892"
+    },
+    {
+      "hotel_id": "128454106",
+      "name": "(SSR 未给店名)",
+      "room": "?",
+      "per_night": "CNY 506",
+      "per_night_num": 506.0,
+      "total": "CNY 1,072"
+    },
+    {
+      "hotel_id": "24162711",
+      "name": "Paddy Fields  Resort(Guilin Shuidaotian)",
+      "room": "?",
+      "per_night": "CNY 781",
+      "per_night_num": 781.0,
+      "total": "CNY 1,656"
+    },
+    {
+      "hotel_id": "6865753",
+      "name": "Yangshuo Sugar House",
+      "room": "Sugar House Retreat King",
+      "per_night": "CNY 1,980",
+      "per_night_num": 1980.0,
+      "total": "CNY 4,198"
+    },
+    {
+      "hotel_id": "6747399",
+      "name": "Yangshuo Mountain Retreat-by Yulong River",
+      "room": "Rearview Twin",
+      "per_night": "CNY 311",
+      "per_night_num": 311.0,
+      "total": "CNY 660"
+    },
+    {
+      "hotel_id": "127830774",
+      "name": "Guilin Moye Resort Hotel",
+      "room": "?",
+      "per_night": "CNY 475",
+      "per_night_num": 475.0,
+      "total": "CNY 1,008"
+    },
+    {
+      "hotel_id": "122250854",
+      "name": "Yangshuo Sanjian Yunshe Homestay",
+      "room": "?",
+      "per_night": "CNY 362",
+      "per_night_num": 362.0,
+      "total": "CNY 768"
+    }
+  ]
+}

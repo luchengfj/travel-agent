@@ -1,0 +1,43 @@
+# ── 白名单模式 ────────────────────────────────────────────────
+# C:\ai 是混放多个任务的工作区（Freedeck / qq-bot / comfyui / 答辩稿 …），
+# 默认忽略一切，只显式放行本仓库「行旅 · Travel Agent」的文件。
+# 改这个文件后先跑一次 git status --short，确认没把无关文件放进来。
+*
+
+# 只放行本仓库需要的两个目录，不用 !*/ 广开放行——
+# 那会让 git 钻进 qq-bot/ 这类嵌套 .git 仓库并把它们暂存成 gitlink。
+!/cardtest/
+!/examples/
+
+# ── 根目录放行 ──
+!/.gitignore
+!/README.md
+!/travel-agent.md
+!/AGENT-解析.md
+!/hangzhou-5d-budget.md
+!/*.png
+
+# ── cardtest/ 放行 ──
+!/cardtest/*.py
+!/cardtest/*.html
+!/cardtest/*.png
+!/cardtest/*.json
+
+# ── examples/ 放行 ──
+!/examples/*.md
+!/examples/*.py
+
+# ── 临时产物 / 缓存：即便名字匹配也要排除（必须放在放行之后才生效）──
+__pycache__/
+*.pyc
+*.pyo
+*.tmp
+*.log
+.DS_Store
+Thumbs.db
+_*.html
+_*.py
+_crop*.png
+cardtest/t.html
+cardtest/t.png
+cardtest/spend-out.png

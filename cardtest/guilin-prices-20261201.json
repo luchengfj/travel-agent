@@ -1,0 +1,106 @@
+{
+  "source": "https://www.trip.com/hotels/list?city=33&checkin=2026-12-01&checkout=2026-12-03&adult=2&curr=CNY&currency=CNY",
+  "city": "Guilin",
+  "dates": [
+    "20261201",
+    "20261203"
+  ],
+  "rows": [
+    {
+      "hotel_id": "2921527",
+      "name": "(SSR 未给店名)",
+      "room": "Light Luxury Queen Room",
+      "per_night": "CNY 292",
+      "per_night_num": 292.0,
+      "total": "CNY 618"
+    },
+    {
+      "hotel_id": "17526083",
+      "name": "(SSR 未给店名)",
+      "room": "Guestroom (Double Bed)",
+      "per_night": "CNY 952",
+      "per_night_num": 952.0,
+      "total": "CNY 2,018"
+    },
+    {
+      "hotel_id": "123673954",
+      "name": "NEO ISLE Hotel (Guilin Liangjiang Sihu Xiangbishan)",
+      "room": "Elegant Smart Room (Double Bed)",
+      "per_night": "CNY 224",
+      "per_night_num": 224.0,
+      "total": "CNY 474"
+    },
+    {
+      "hotel_id": "122476915",
+      "name": "(SSR 未给店名)",
+      "room": "?",
+      "per_night": "CNY 334",
+      "per_night_num": 334.0,
+      "total": "CNY 708"
+    },
+    {
+      "hotel_id": "75424975",
+      "name": "(SSR 未给店名)",
+      "room": "100-Inch Projector King Room",
+      "per_night": "CNY 515",
+      "per_night_num": 515.0,
+      "total": "CNY 1,092"
+    },
+    {
+      "hotel_id": "397571",
+      "name": "Shangri-La Guilin",
+      "room": "Deluxe 2-bed Room",
+      "per_night": "CNY 689",
+      "per_night_num": 689.0,
+      "total": "CNY 1,607"
+    },
+    {
+      "hotel_id": "2046919",
+      "name": "Zhumusiyu",
+      "room": "?",
+      "per_night": "CNY 110",
+      "per_night_num": 110.0,
+      "total": "CNY 234"
+    },
+    {
+      "hotel_id": "134959786",
+      "name": "FourPoints by Sheraton Guilin Central",
+      "room": "?",
+      "per_night": "CNY 457",
+      "per_night_num": 457.0,
+      "total": "CNY 968"
+    },
+    {
+      "hotel_id": "135924874",
+      "name": "R ROYALSS HOTEL (Guilin High-Speed Railway North Station)",
+      "room": "R Elegant Double Bed Room (High-Floor Scenic View)",
+      "per_night": "CNY 148",
+      "per_night_num": 148.0,
+      "total": "CNY 314"
+    },
+    {
+      "hotel_id": "62540761",
+      "name": "GUILIN CENTRAL PALACE HOTEL",
+      "room": "Superior Twin Bed Room | Sunshine Bedroom + Tub",
+      "per_night": "CNY 516",
+      "per_night_num": 516.0,
+      "total": "CNY 1,094"
+    },
+    {
+      "hotel_id": "129142995",
+      "name": "Guilin Yanshan Huiting Yunju Hotel (Lijiang Guanyan Branch)",
+      "room": "?",
+      "per_night": "CNY 329",
+      "per_night_num": 329.0,
+      "total": "CNY 698"
+    },
+    {
+      "hotel_id": "78220402",
+      "name": "(SSR 未给店名)",
+      "room": "?",
+      "per_night": "CNY 269",
+      "per_night_num": 269.0,
+      "total": "CNY 570"
+    }
+  ]
+}

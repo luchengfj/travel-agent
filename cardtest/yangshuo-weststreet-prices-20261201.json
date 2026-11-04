@@ -1,0 +1,106 @@
+{
+  "source": "https://www.trip.com/hotels/list?city=871&checkin=2026-12-01&checkout=2026-12-03&adult=2&curr=CNY&currency=CNY&zone=4532",
+  "city": "Yangshuo",
+  "dates": [
+    "20261201",
+    "20261203"
+  ],
+  "rows": [
+    {
+      "hotel_id": "659879",
+      "name": "Xitang River View Holiday Hotel",
+      "room": "Standard Room 18㎡ (No Window)",
+      "per_night": "CNY 166",
+      "per_night_num": 166.0,
+      "total": "CNY 352"
+    },
+    {
+      "hotel_id": "76543115",
+      "name": "Yangshuo Xijieli No.9 Meisu",
+      "room": "Cozy Room (Double Bed)",
+      "per_night": "CNY 83",
+      "per_night_num": 83.0,
+      "total": "CNY 175"
+    },
+    {
+      "hotel_id": "437412",
+      "name": "Yangshuo Percent Hotel  (West Street Li River  )",
+      "room": "Bay Window Twin Room (Peaceful Sleep + Derucci Mattress)",
+      "per_night": "CNY 301",
+      "per_night_num": 301.0,
+      "total": "CNY 638"
+    },
+    {
+      "hotel_id": "794679",
+      "name": "YoYo Home  hotel(YangShuo)",
+      "room": "Double Room with Balcony",
+      "per_night": "CNY 80",
+      "per_night_num": 80.0,
+      "total": "CNY 170"
+    },
+    {
+      "hotel_id": "15898279",
+      "name": "GuiLin Shushe Treehouse Hotel (Yangshuo Yitian West Street)",
+      "room": "Queen Room",
+      "per_night": "CNY 119",
+      "per_night_num": 119.0,
+      "total": "CNY 252"
+    },
+    {
+      "hotel_id": "131832482",
+      "name": "The CONGQIANMAN Hotel, West Street Li River Branch",
+      "room": "?",
+      "per_night": "CNY 170",
+      "per_night_num": 170.0,
+      "total": "CNY 361"
+    },
+    {
+      "hotel_id": "78178599",
+      "name": "Guilin Yangshuo West Street Drum Tower Atour Hotel",
+      "room": "Elegant Queen Room",
+      "per_night": "CNY 270",
+      "per_night_num": 270.0,
+      "total": "CNY 572"
+    },
+    {
+      "hotel_id": "80940699",
+      "name": "BO Hotel (Yangshuo West Street &Lijiang River)",
+      "room": "Giant Screen Audio & Video King Room | 100\\\\",
+      "per_night": "CNY 281",
+      "per_night_num": 281.0,
+      "total": "CNY 596"
+    },
+    {
+      "hotel_id": "114055781",
+      "name": "(SSR 未给店名)",
+      "room": "2-bed Room With City View",
+      "per_night": "CNY 479",
+      "per_night_num": 479.0,
+      "total": "CNY 1,016"
+    },
+    {
+      "hotel_id": "61688864",
+      "name": "(SSR 未给店名)",
+      "room": "?",
+      "per_night": "CNY 172",
+      "per_night_num": 172.0,
+      "total": "CNY 364"
+    },
+    {
+      "hotel_id": "131705283",
+      "name": "(BO·HUI Hotel (Yangshuo West Street& Lijiang River)",
+      "room": "Queen Room",
+      "per_night": "CNY 329",
+      "per_night_num": 329.0,
+      "total": "CNY 696"
+    },
+    {
+      "hotel_id": "2078261",
+      "name": "Ziteng Inn",
+      "room": "?",
+      "per_night": "CNY 146",
+      "per_night_num": 146.0,
+      "total": "CNY 310"
+    }
+  ]
+}

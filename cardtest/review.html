@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#FBF8F2; font-family:"Microsoft YaHei",sans-serif; -webkit-font-smoothing:antialiased; font-feature-settings:"tnum"; }
+  .page { width:1080px; }
+
+  .hero {
+    background:linear-gradient(150deg,#1A2E28 0%,#243F38 50%,#2E4F46 100%);
+    padding:54px 64px 46px; position:relative; overflow:hidden;
+  }
+  .hero::after {
+    content:""; position:absolute; right:-130px; top:-150px; width:430px; height:430px;
+    border-radius:50%; background:radial-gradient(circle,rgba(200,155,60,.24) 0%,rgba(200,155,60,0) 68%);
+  }
+  .kicker { font-size:15px; letter-spacing:.34em; color:#7FA398; font-weight:600; margin-bottom:20px; }
+  .h1 { font-size:58px; font-weight:700; color:#fff; letter-spacing:-.02em; line-height:1.08; }
+  .h1 em { font-style:normal; color:#D8B968; }
+  .sub { font-size:19px; color:#A9C4BB; margin-top:15px; }
+
+  .scoreboard {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:14px;
+    margin-top:36px; position:relative; z-index:2;
+  }
+  .sb {
+    background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.13);
+    border-radius:14px; padding:20px 22px;
+  }
+  .sb .k { font-size:13.5px; color:#8FB0A6; letter-spacing:.09em; margin-bottom:9px; }
+  .sb .v { font-size:36px; font-weight:700; letter-spacing:-.03em; line-height:1; color:#fff; }
+  .sb .v small { font-size:15px; color:#94B3A9; font-weight:400; letter-spacing:0; margin-left:3px; }
+  .sb .v.over { color:#F0A08A; }
+  .sb .v.save { color:#8FD3B0; }
+  .sb .d { font-size:13px; color:#8FB0A6; margin-top:8px; }
+
+  .sec { padding:44px 64px 0; }
+  .sectitle { display:flex; align-items:center; gap:14px; margin-bottom:24px; }
+  .sectitle .bar { width:5px; height:26px; background:#C8553D; border-radius:3px; }
+  .sectitle h2 { font-size:30px; font-weight:700; color:#1E3A34; letter-spacing:-.01em; }
+  .sectitle .note { font-size:15px; color:#A29A8C; margin-left:auto; }
+
+  .cbhead {
+    display:grid; grid-template-columns:1fr 128px 128px 104px;
+    padding-bottom:11px; border-bottom:2px solid #1E3A34;
+  }
+  .cbhead div { font-size:13px; color:#A29A8C; letter-spacing:.1em; }
+  .cbhead div:not(:first-child) { text-align:right; }
+
+  .cbrow {
+    display:grid; grid-template-columns:1fr 128px 128px 104px;
+    align-items:center; padding:16px 0;
+    border-bottom:1px solid #EDE7DA;
+  }
+  .cbrow .nm { font-size:20px; color:#1E3A34; font-weight:700; }
+  .cbrow .nm small { display:block; font-size:13.5px; color:#A29A8C; font-weight:400; margin-top:3px; }
+  .cbrow .plan { font-size:19px; color:#8D8577; text-align:right; font-variant-numeric:tabular-nums; }
+  .cbrow .real { font-size:20px; color:#1E3A34; font-weight:700; text-align:right; font-variant-numeric:tabular-nums; }
+  .cbrow .delta { font-size:17px; text-align:right; font-variant-numeric:tabular-nums; }
+  .delta.up { color:#C8553D; font-weight:700; }
+  .delta.down { color:#2F7D5E; font-weight:700; }
+  .delta.flat { color:#8D8577; }
+
+  .cbtotal {
+    display:grid; grid-template-columns:1fr 128px 128px 104px;
+    align-items:center; padding:20px 0; margin-top:4px;
+    border-top:2px solid #1E3A34;
+  }
+  .cbtotal .nm { font-size:21px; color:#1E3A34; font-weight:700; letter-spacing:.02em; }
+  .cbtotal .plan { font-size:22px; color:#5A6B65; font-weight:700; text-align:right; }
+  .cbtotal .real { font-size:26px; color:#1E3A34; font-weight:700; text-align:right; letter-spacing:-.02em; }
+  .cbtotal .delta { font-size:19px; font-weight:700; text-align:right; }
+  .cbtotal .delta.up { color:#C8553D; }
+
+  .verdict {
+    margin-top:28px;
+    display:flex; gap:16px;
+  }
+  .vb { flex:1; border-radius:15px; padding:24px 26px; }
+  .vb.warn { background:#FBEDE7; border:1.5px solid #F0CFC2; }
+  .vb.good { background:#EAF3EC; border:1.5px solid #C6DFCE; }
+  .vb .t { font-size:14px; letter-spacing:.1em; font-weight:700; margin-bottom:11px; }
+  .vb.warn .t { color:#C8553D; }
+  .vb.good .t { color:#2F7D5E; }
+  .vb .m { font-size:17px; color:#4A5A55; line-height:1.66; }
+  .vb .m b { color:#1E3A34; font-weight:700; }
+
+  .lessons { margin-top:38px; }
+  .lt {
+    display:flex; gap:16px; padding:17px 0;
+    border-bottom:1px solid #EDE7DA;
+    align-items:flex-start;
+  }
+  .lt:last-child { border-bottom:none; }
+  .lt .idx {
+    font-size:15px; font-weight:700; color:#C89B3C; flex:none;
+    width:28px; padding-top:2px; letter-spacing:.04em;
+  }
+  .lt .bd .h { font-size:19px; color:#1E3A34; font-weight:700; margin-bottom:5px; }
+  .lt .bd .p { font-size:16.5px; color:#6A6A62; line-height:1.68; }
+  .lt .bd .p b { color:#1E3A34; }
+  .lt .bd .p code {
+    font-family:"Consolas",monospace; font-size:15px;
+    background:#F1EDE3; padding:1px 7px; border-radius:5px; color:#8A3D2B;
+  }
+
+  .alert {
+    margin:38px 64px 0; background:linear-gradient(100deg,#FDF7EC,#FAF3E4);
+    border-left:5px solid #C89B3C; border-radius:0 14px 14px 0; padding:24px 30px;
+  }
+  .alert .t { display:flex; align-items:center; gap:10px; font-size:19px; color:#96731F; font-weight:700; margin-bottom:13px; }
+  .alert ul { list-style:none; }
+  .alert li { font-size:16.5px; color:#6A5348; line-height:1.75; padding-left:18px; position:relative; }
+  .alert li::before { content:""; position:absolute; left:0; top:11px; width:6px; height:6px; border-radius:50%; background:#C89B3C; }
+  .alert li b { color:#8A3D2B; }
+
+  .foot { margin-top:38px; padding:24px 64px 38px; border-top:1px solid #E8E2D6; }
+  .foot .src { font-size:13.5px; color:#A29A8C; line-height:1.85; }
+  .foot .src b { color:#8D8577; }
+  .foot .meta { display:flex; justify-content:space-between; margin-top:16px; padding-top:15px; border-top:1px dashed #E8E2D6; }
+  .foot .meta div { font-size:13.5px; color:#B5AD9E; letter-spacing:.05em; }
+</style>
+
+<div class="page">
+  <div class="hero">
+    <div class="kicker">REVIEW MODE · TRIP POST-MORTEM</div>
+    <div class="h1">杭州这趟<br><em>钱花哪了</em></div>
+    <div class="sub">11月10日 – 11月14日 &nbsp;·&nbsp; 2 人 &nbsp;·&nbsp; 5 天 4 晚</div>
+
+    <div class="scoreboard">
+      <div class="sb">
+        <div class="k">实际总支出</div>
+        <div class="v">3,286<small>元/2人</small></div>
+        <div class="d">人均 1,643</div>
+      </div>
+      <div class="sb">
+        <div class="k">超预算</div>
+        <div class="v over">+142<small>元</small></div>
+        <div class="d">原计划 3,144</div>
+      </div>
+      <div class="sb">
+        <div class="k">餐饮占实际支出</div>
+        <div class="v">46<small>%</small></div>
+        <div class="d">1,512 元 · 预期 45%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sectitle">
+      <div class="bar"></div>
+      <h2>分项对账</h2>
+      <div class="note">金额 = 2 人合计</div>
+    </div>
+
+    <div class="cbhead">
+      <div>项目</div><div>预算</div><div>实付</div><div>差额</div>
+    </div>
+
+    <div class="cbrow">
+      <div class="nm">住宿<small>4 晚 · 湖滨双床</small></div>
+      <div class="plan">1,320</div><div class="real">1,420</div><div class="delta up">+100</div>
+    </div>
+
+    <div class="cbrow">
+      <div class="nm">餐饮<small>8 正餐 + 早点</small></div>
+      <div class="plan">1,428</div><div class="real">1,512</div><div class="delta up">+84</div>
+    </div>
+
+    <div class="cbrow">
+      <div class="nm">门票<small>雷峰塔 + 游船</small></div>
+      <div class="plan">190</div><div class="real">190</div><div class="delta flat">0</div>
+    </div>
+
+    <div class="cbrow">
+      <div class="nm">市内交通<small>地铁 + 打车</small></div>
+      <div class="plan">206</div><div class="real">164</div><div class="delta down">−42</div>
+    </div>
+
+    <div class="cbtotal">
+      <div class="nm">合计</div>
+      <div class="plan">3,144</div>
+      <div class="real">3,286</div>
+      <div class="delta up">+142</div>
+    </div>
+
+    <div class="verdict">
+      <div class="vb warn">
+        <div class="t">超支来源</div>
+        <div class="m"><b>住宿多花 100 元</b>：11 月旺季，起价 ¥290 的房型当天已满，实际订到 ¥355 每晚。<br>这是<b>没法靠提前规划避免</b>的部分。</div>
+      </div>
+      <div class="vb good">
+        <div class="t">省下来的</div>
+        <div class="m"><b>交通省 42 元</b>：地铁比预估便宜，且没打过车。苏堤到白堤全部步行。<br>餐饮超 84 元，主要是楼外楼点了叫花鸡（+68）。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" style="padding-top:46px">
+    <div class="sectitle">
+      <div class="bar"></div>
+      <h2>下次改进</h2>
+      <div class="note">按影响大小排</div>
+    </div>
+
+    <div class="lessons">
+      <div class="lt">
+        <div class="idx">01</div>
+        <div class="bd">
+          <div class="h">住宿提前 3 周订，别等起价</div>
+          <div class="p">这次按 ¥290 起价做预算，实际当天最便宜的房型已经没了。教训：<b>旺季按起价 +25% 编预算</b>，或者干脆订「免费取消」锁价后持续盯。可以先用 <code>¥290 × 1.25</code> 建一个保守总额。</div>
+        </div>
+      </div>
+
+      <div class="lt">
+        <div class="idx">02</div>
+        <div class="bd">
+          <div class="h">楼外楼吃午市，性价比完全不一样</div>
+          <div class="p">¥294 这顿点了西湖醋鱼 + 叫花鸡 + 宋嫂鱼羹。<b>叫花鸡 ¥68 是这次最不值的一笔</b>——量大但味道普通。下次只点醋鱼和莼菜汤，人均能压到 ¥90 左右。</div>
+        </div>
+      </div>
+
+      <div class="lt">
+        <div class="idx">03</div>
+        <div class="bd">
+          <div class="h">知味观只吃一楼点心，不进大厅</div>
+          <div class="p">大厅出品<span style="color:#8A3D2B">稳定性差</span>（点评里也这么说），但一楼的<b>小笼、猫耳朵、龙井茶酥</b>是稳定高分。下次直接一楼打包，¥40 搞定，别点 ¥164 的整桌。</div>
+        </div>
+      </div>
+
+      <div class="lt">
+        <div class="idx">04</div>
+        <div class="bd">
+          <div class="h">灵隐预约要早点，别卡着 8:00 抢</div>
+          <div class="p">这次 11/3 08:00 抢到了，但只剩下午场（12:00–17:00），导致当天上午行程被打乱。下次<b>提前 7 天的那一分钟就进</b>，上午场更从容。</div>
+        </div>
+      </div>
+
+      <div class="lt">
+        <div class="idx">05</div>
+        <div class="bd">
+          <div class="h">胜利河美食街值得单独去一趟</div>
+          <div class="p">老头儿油爆虾 ¥172 是这趟<b>性价比最高的一顿</b>，虾很新鲜。胜利河还有小厨师（¥282）和樟树底（¥128）没吃到，下次安排两个晚上。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert">
+    <div class="t">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#C89B3C" stroke-width="2.4" stroke-linecap="round">
+        <path d="M12 9v5M12 17.5v.5"/><circle cx="12" cy="12" r="9"/>
+      </svg>
+      记账要趁早
+    </div>
+    <ul>
+      <li>这张表是<b>按消费记录倒推的示例</b>，真实复盘请在旅途中每天记一笔。拖到最后一天凭记忆凑，误差会比预算本身还大。</li>
+      <li>超支 142 元里，<b>100 元来自住宿这种「不可控项」</b>，只有 84 元是主动消费。复盘时要把这两类分开看，否则会误判自己的花钱习惯。</li>
+    </ul>
+  </div>
+
+  <div class="foot">
+    <div class="src">
+      <b>说明</b>　本页为 review 模式的<b>格式示例</b>，金额为演示数据，非真实消费记录。真实使用时，预算列取自 plan 模式的预算表，实付列取自你的账本或支付账单导出。
+    </div>
+    <div class="meta">
+      <div>示例生成日 2026-11-01</div>
+      <div>REVIEW MODE</div>
+    </div>
+  </div>
+</div>
+</html>

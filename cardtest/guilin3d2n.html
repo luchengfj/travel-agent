@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>桂林阳朔 3天2夜 · 2人 · 总预算3000</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#FBF8F2;color:#1E3A34;font-family:"Microsoft YaHei","PingFang SC",sans-serif;
+     font-feature-settings:"tnum";-webkit-font-smoothing:antialiased}
+.page{width:1080px;background:#FBF8F2;padding:54px 60px 60px}
+.hero{background:#1E3A34;color:#FBF8F2;border-radius:22px;padding:46px 50px 40px;position:relative;overflow:hidden}
+.hero:after{content:"";position:absolute;right:-70px;top:-70px;width:280px;height:280px;
+     border:1px solid rgba(200,155,60,.35);border-radius:50%}
+.kicker{font-size:15px;letter-spacing:3px;color:#C89B3C;font-weight:700}
+.h1{font-size:54px;line-height:1.15;font-weight:800;margin-top:16px;letter-spacing:1px}
+.h1 em{font-style:normal;color:#C89B3C}
+.sub{font-size:18px;color:#CFDCD6;margin-top:16px}
+.herobottom{display:flex;align-items:flex-end;justify-content:space-between;margin-top:34px;
+     border-top:1px solid rgba(255,255,255,.18);padding-top:28px}
+.bigmoney .cur{font-size:34px;color:#C89B3C;vertical-align:top;margin-right:6px}
+.bigmoney .num{font-size:96px;font-weight:800;line-height:1;letter-spacing:-2px}
+.bigmoney .unit{font-size:19px;color:#CFDCD6;margin-left:12px}
+.delta{text-align:right}
+.pill{display:inline-block;background:#C8553D;color:#fff;border-radius:100px;
+     padding:9px 20px;font-size:17px;font-weight:700;margin-bottom:10px}
+.delta .k{font-size:14px;color:#9FB5AC}
+.delta .v{font-size:24px;font-weight:700;color:#FBF8F2}
+
+h2{font-size:25px;margin:44px 0 18px;padding-left:14px;border-left:6px solid #C8553D;letter-spacing:1px}
+.tiers{display:flex;gap:16px}
+.tier{flex:1;background:#fff;border:2px solid #E6E0D4;border-radius:16px;padding:24px 22px;position:relative}
+.tier.rec{border-color:#1E3A34;box-shadow:0 8px 26px rgba(30,58,52,.13)}
+.tier .tag{position:absolute;top:-13px;left:20px;background:#1E3A34;color:#fff;
+     font-size:13px;font-weight:700;padding:5px 14px;border-radius:100px;letter-spacing:1px}
+.tier:not(.rec) .tag{background:#9FB5AC}
+.tier .name{font-size:21px;font-weight:800;margin-bottom:4px}
+.tier .price{font-size:38px;font-weight:800;color:#C8553D;line-height:1.1;margin:8px 0 2px}
+.tier .per{font-size:15px;color:#6A7C75;margin-bottom:14px}
+.tier ul{list-style:none;font-size:15px;line-height:1.85;color:#3A4E47}
+.tier li:before{content:"·";color:#C89B3C;font-weight:800;margin-right:8px}
+.tier .fit{margin-top:14px;background:#F3F0E8;border-radius:9px;padding:10px 12px;
+     font-size:14px;color:#5B6B64;line-height:1.6}
+.tier .left{margin-top:10px;font-size:14px;font-weight:700;color:#2A4F46}
+
+.stack{background:#fff;border-radius:16px;padding:26px 28px;border:1px solid #E6E0D4}
+.bar{display:flex;height:38px;border-radius:9px;overflow:hidden;margin:6px 0 20px;font-size:13px;
+     font-weight:700;color:#fff;text-align:center;line-height:38px}
+.bar span{white-space:nowrap;overflow:hidden}
+.b1{background:#1E3A34}.b2{background:#5B7C99}.b3{background:#C89B3C}.b4{background:#C8553D}.b5{background:#9FB5AC}
+.lg{display:flex;flex-wrap:wrap;gap:10px 22px;font-size:15px;color:#3A4E47}
+.lg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:7px;vertical-align:-1px}
+.total{display:flex;justify-content:space-between;align-items:baseline;margin-top:20px;
+     border-top:2px solid #1E3A34;padding-top:16px;font-size:17px}
+.total b{font-size:30px;color:#C8553D}
+.note{font-size:14px;color:#6A7C75;line-height:1.75;margin-top:14px;background:#F3F0E8;
+     border-radius:9px;padding:13px 16px}
+
+.day{display:flex;gap:20px;background:#fff;border-radius:14px;padding:22px 24px;margin-bottom:14px;
+     border:1px solid #E6E0D4}
+.dayno{flex:0 0 76px;height:76px;border-radius:14px;background:#1E3A34;color:#fff;
+     display:flex;flex-direction:column;align-items:center;justify-content:center}
+.dayno b{font-size:27px;line-height:1}.dayno s{font-size:12px;color:#C89B3C;text-decoration:none;margin-top:4px}
+.daybody{flex:1}
+.daybody h3{font-size:20px;margin-bottom:9px}
+.daybody p{font-size:15px;line-height:1.85;color:#3A4E47}
+.daybody .cost{display:inline-block;margin-top:10px;background:#EAF0F5;color:#2A4F46;
+     border-radius:8px;padding:6px 12px;font-size:14px;font-weight:700}
+.daybody .warn{display:block;margin-top:9px;font-size:14px;color:#A23E2B;line-height:1.6}
+
+.two{display:flex;gap:16px;align-items:flex-start}
+.box{flex:1;border-radius:14px;padding:22px 24px;font-size:15px;line-height:1.9}
+.box.blue{background:#EAF0F5;border:1px solid #C9D9E4;color:#2A4F46}
+.box.cream{background:#FBF3E2;border:1px solid #EBDCB8;color:#5A4A2A}
+.box h3{font-size:19px;margin-bottom:10px}
+.box ol{margin-left:20px}.box li{margin-bottom:5px}
+.box .flag{color:#A23E2B;font-weight:700}
+.foot{margin-top:34px;border-top:1px solid #E6E0D4;padding-top:18px;
+     display:flex;justify-content:space-between;font-size:13px;color:#8A9891}
+</style></head>
+<body><div class="page">
+
+<div class="hero">
+  <div class="kicker">GUILIN · YANGSHUO · 3 DAYS 2 NIGHTS</div>
+  <div class="h1">桂林阳朔<br><em>3天2夜</em> · 山水+美食</div>
+  <div class="sub">日期待定（按冬季排） &nbsp;·&nbsp; 2 人 &nbsp;·&nbsp; 深圳北高铁往返 &nbsp;·&nbsp; 总预算 ¥3,000</div>
+  <div class="herobottom">
+    <div class="bigmoney"><span class="cur">¥</span><span class="num">1,381</span><span class="unit">/ 人均 · 推荐均衡档</span></div>
+    <div class="delta">
+      <div class="pill">2 人合计 ¥2,762 · 余 ¥238</div>
+      <div class="k">往返高铁已占（2 人）</div><div class="v">¥1,102 / 人均 ¥551</div>
+    </div>
+  </div>
+</div>
+
+<h2>三档取舍 · 都在 ¥3,000 之内</h2>
+<div class="tiers">
+  <div class="tier">
+    <div class="tag">省钱</div>
+    <div class="name">把钱留在刀刃上</div>
+    <div class="price">¥2,362</div><div class="per">人均 ¥1,181</div>
+    <ul><li>遇龙河竹筏 ¥90/人</li><li>漓江改兴坪古镇免费观景</li><li>西街 + 十里画廊电动车</li><li>米粉为主，啤酒鱼吃一顿</li><li>西街经济客栈 2 晚（¥230/晚）</li></ul>
+    <div class="fit">适合：来过阳朔 / 只想慢逛、不想赶场</div>
+    <div class="left">余 ¥638，最抗意外</div>
+  </div>
+  <div class="tier rec">
+    <div class="tag">推荐 · 均衡</div>
+    <div class="name">山水和美食都要</div>
+    <div class="price">¥2,762</div><div class="per">人均 ¥1,381</div>
+    <ul><li>遇龙河竹筏 + 漓江杨堤→兴坪</li><li>西街 + 十里画廊 + 兴坪古镇</li><li>啤酒鱼 / 椿记烧鹅 / 桂林米粉</li><li>舒适客栈 2 晚（¥260/晚，含空调制热）</li><li>打车 + 半天包车</li></ul>
+    <div class="fit">适合：第一次来、3 天想把经典一次走完</div>
+    <div class="left">余 ¥238 作应急，最稳</div>
+  </div>
+  <div class="tier">
+    <div class="tag">深度</div>
+    <div class="name">项目拉满，但没余量</div>
+    <div class="price">¥2,992</div><div class="per">人均 ¥1,496</div>
+    <ul><li>均衡全部 + 银子岩 ¥55/人</li><li>住宿升到 ¥320/晚</li><li>餐饮再加一顿正餐</li><li>不含印象刘三姐</li></ul>
+    <div class="fit">适合：预算可临时追加、不介意卡线</div>
+    <div class="left" style="color:#A23E2B">仅余 ¥8 — 不建议（见下）</div>
+  </div>
+</div>
+
+<h2>推荐档预算明细（2 人合计）</h2>
+<div class="stack">
+  <div class="bar">
+    <span class="b1" style="width:39.9%">高铁 1,102</span>
+    <span class="b2" style="width:18.8%">住宿 520</span>
+    <span class="b3" style="width:18.1%">餐饮 500</span>
+    <span class="b4" style="width:14.5%">门票 400</span>
+    <span class="b5" style="width:8.7%">市内 240</span>
+  </div>
+  <div class="lg">
+    <span><i class="b1"></i>往返高铁 ¥1,102（¥275.5/人 × 2 程 × 2 人）</span>
+    <span><i class="b2"></i>住宿 ¥520（¥260/间/晚 × 2 晚 × 1 间）</span>
+    <span><i class="b3"></i>餐饮 ¥500</span>
+    <span><i class="b4"></i>门票 ¥400（¥200/人 × 2）</span>
+    <span><i class="b5"></i>市内交通 ¥240</span>
+  </div>
+  <div class="total"><span>合计 = 1,102 + 520 + 500 + 400 + 240</span><b>¥2,762</b></div>
+  <div class="note">
+    <b>加总自检</b>：2,762 ÷ 2 = <b>人均 ¥1,381</b>；人均分项 551 + 260 + 250 + 200 + 120 = <b>1,381</b> ✓
+    三处同步：正文 / 图卡大数字 / 分项加总一致。预算 ¥3,000 − ¥2,762 = <b>余 ¥238</b>（约 8% 应急）。<br>
+    <b>口径声明</b>：¥3,000 按「<b>2 人总共、含往返大交通</b>」计；住宿统一 ¥/间/晚 再 ÷2 换人均。
+    若这 3,000 <u>不含</u>高铁，则人均可再宽裕 ¥551，三档都能升一档。<br>
+    <b>取整口径</b>：分项先按元取整，合计 = 取整后分项相加；不用未取整的精确值求和。
+  </div>
+</div>
+
+<h2>逐日行程</h2>
+<div class="day">
+  <div class="dayno"><b>D1</b><s>抵达</s></div>
+  <div class="daybody"><h3>深圳北 → 阳朔站 → 西街</h3>
+    <p>高铁约 3h 到阳朔站，打车约 40 分钟到西街（¥80 左右）。下午西街 / 漓江边慢逛，
+       晚上大师傅金奖啤酒鱼（¥75/人）。住西街。</p>
+    <span class="cost">当日：高铁 ¥551 + 打车 ¥80 + 晚餐 ¥150 + 住宿 ¥260 ≈ ¥1,041（2 人）</span>
+  </div>
+</div>
+<div class="day">
+  <div class="dayno"><b>D2</b><s>核心</s></div>
+  <div class="daybody"><h3>遇龙河竹筏 → 十里画廊 → 漓江兴坪</h3>
+    <p>08:00 出发，08:30–10:30 遇龙河竹筏（¥90/人，早上人少）；十里画廊电动车；
+       午餐椿记烧鹅（¥81/人）；12:30 包车至杨堤（半天包车 ¥100，含十里画廊电动车与接驳），
+       13:30–15:30 漓江杨堤→兴坪（¥110/人），
+       16:00 兴坪古镇看 20 元人民币背景；17:30 返西街。住西街。</p>
+    <span class="cost">当日：门票 ¥400 + 包车 ¥100 + 餐饮 ¥250 + 住宿 ¥260 = ¥1,010（2 人）</span>
+    <span class="warn">⚠️ 可行性：这天两段水面 + 电动车，是全程最紧的一天，必须 08:00 出门。
+      怕赶就把漓江段降级为「兴坪古镇免费观景」，2 人省 ¥220，行程立刻松下来。</span>
+  </div>
+</div>
+<div class="day">
+  <div class="dayno"><b>D3</b><s>返程</s></div>
+  <div class="daybody"><h3>西街 → 阳朔站 → 深圳北</h3>
+    <p>睡到自然醒，瘦子桂林米粉（¥20–40/人），西街买伴手礼，打车至阳朔站，
+       高铁返深圳北（¥275.5/人）。</p>
+    <span class="cost">当日：高铁 ¥551 + 打车 ¥60 + 米粉/简餐 ¥100 ≈ ¥711（2 人）</span>
+    <span class="warn">注：返程 ¥551 已单独计入，与预算表高铁 ¥1,102（去 551 + 回 551）一致，不写「已计入」。</span>
+  </div>
+</div>
+
+<h2>出发前必做 · 与时效核实</h2>
+<div class="two">
+  <div class="box blue">
+    <h3>出发前必做</h3>
+    <ol>
+      <li>12306 买深圳北 ⇄ 阳朔往返（提前 15 天开售，¥275.5 为二等座历史核实价）</li>
+      <li>订西街住宿 2 晚：<b>筛选勾「有空调」并确认能制热</b>；按实际日期重拉 SSR 价核对 ¥260/晚 基准</li>
+      <li>遇龙河竹筏线上预约（旺季需抢早场）</li>
+      <li>出发前 7 天拉实时天气回填</li>
+    </ol>
+  </div>
+  <div class="box cream">
+    <h3>价格可信度 / 待核实</h3>
+    <ol>
+      <li><span class="flag">【已核实 · 免登录 SSR】</span>西街住宿实时挂牌价（12/1–12/3，2 人 1 间，含税费）：
+        12 家样本每晚 <b>¥80–479，中位 ¥171，9 家 ≤¥300</b>；西街里9号美宿 ¥83 / YoYo Home ¥80 /
+        西塘河景 ¥166 / 漓岸璞闲 ¥301 / BO 酒店 ¥281。
+        <b>本卡 ¥260/晚 落在真实区间内且高于中位，属合理偏保守</b>；日期未定，出发前按实际日期重拉。</li>
+      <li><span class="flag">【已核实 · 挂牌】</span>门票（遇龙河 90 / 漓江 110 / 银子岩 55 / 刘三姐 135）
+        出自阳朔旅游报价表，现场可能有联票，出发前复核。</li>
+      <li><span class="flag">【气候常态 · 非实时】</span>冬季阳朔 9–19°C，昼夜温差 8–10°C，
+        江风湿冷、偶有小雨；非冬季这套穿搭/空调提示要改。</li>
+      <li>应急电话 <b>12345</b>（12301 / 12318 已于 2021 年底并入 12345）。</li>
+    </ol>
+  </div>
+</div>
+
+<div class="note" style="margin-top:16px">
+  <b>为什么深度档不推荐</b>：¥2,992 只剩 ¥8 应急，12 月江边湿冷，临时加衣、改签、多打一次车都会破表。
+  若一定要加印象刘三姐（¥135/人 × 2 = ¥270），2 人合计需 <b>¥3,262</b>，超出 ¥3,000 共 ¥262 —
+  要么把预算放宽到 ¥3,300，要么从省钱档里腾。按「预算不够给取舍」，不硬塞进 3,000。
+</div>
+
+<div class="foot">
+  <span>行旅 · plan 模式 · 3 DAYS 2 NIGHTS / 2 人 / 总预算 ¥3,000</span>
+  <span>价格：挂牌已核实 · 西街房价免登录 SSR 已核实 · 天气为气候常态</span>
+</div>
+
+</div></body></html>

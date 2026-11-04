@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { background:#FBF8F2; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "tnum";
+  }
+  .page { width:1080px; }
+
+  /* ---------- HEADER ---------- */
+  .hero {
+    background: linear-gradient(150deg, #16302B 0%, #1E3A34 45%, #2A4F46 100%);
+    padding: 54px 64px 46px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::after {
+    content:"";
+    position:absolute; right:-140px; top:-140px;
+    width:440px; height:440px; border-radius:50%;
+    background: radial-gradient(circle, rgba(200,155,60,.22) 0%, rgba(200,155,60,0) 68%);
+  }
+  .kicker {
+    font-size:15px; letter-spacing:.34em; color:#7FA398;
+    font-weight:600; text-transform:uppercase; margin-bottom:20px;
+  }
+  .h1 {
+    font-size:62px; font-weight:700; color:#fff;
+    letter-spacing:-.02em; line-height:1.06;
+  }
+  .h1 em { font-style:normal; color:#D8B968; }
+  .sub { font-size:20px; color:#A9C4BB; margin-top:16px; letter-spacing:.02em; }
+
+  .herobottom {
+    display:flex; align-items:flex-end; justify-content:space-between;
+    margin-top:44px; padding-top:30px;
+    border-top:1px solid rgba(255,255,255,.13);
+  }
+  .bigmoney { display:flex; align-items:baseline; gap:6px; }
+  .bigmoney .cur { font-size:40px; color:#D8B968; font-weight:400; }
+  .bigmoney .num {
+    font-size:104px; font-weight:700; color:#fff;
+    letter-spacing:-.045em; line-height:.92;
+  }
+  .bigmoney .unit { font-size:22px; color:#94B3A9; margin-left:12px; }
+
+  .delta { text-align:right; }
+  .delta .k { font-size:15px; color:#7FA398; letter-spacing:.1em; margin-bottom:8px; }
+  .delta .v {
+    display:inline-block;
+    background:rgba(200,85,61,.18);
+    border:1px solid rgba(216,107,84,.5);
+    color:#F0A08A; font-size:30px; font-weight:700;
+    padding:8px 20px; border-radius:10px; letter-spacing:-.01em;
+  }
+
+  /* ---------- BUDGET ---------- */
+  .sec { padding: 46px 64px 0; }
+  .sectitle {
+    display:flex; align-items:center; gap:14px; margin-bottom:26px;
+  }
+  .sectitle .bar { width:5px; height:26px; background:#C8553D; border-radius:3px; }
+  .sectitle h2 { font-size:30px; font-weight:700; color:#1E3A34; letter-spacing:-.01em; }
+  .sectitle .note { font-size:16px; color:#A29A8C; margin-left:auto; letter-spacing:.02em; }
+
+  .stack {
+    display:flex; height:22px; border-radius:11px; overflow:hidden;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.07); margin-bottom:8px;
+  }
+  .stack div { height:100%; }
+  .legend { display:flex; gap:26px; margin-bottom:26px; }
+  .legend span { font-size:15px; color:#6E6E6E; display:flex; align-items:center; gap:7px; }
+  .legend i { width:11px; height:11px; border-radius:3px; display:block; }
+
+  .rows { }
+  .row {
+    display:grid; grid-template-columns: 190px 1fr 128px 92px;
+    align-items:center; padding:17px 0;
+    border-bottom:1px solid #EDE7DA;
+  }
+  .row:last-child { border-bottom:none; }
+  .row .name { font-size:21px; color:#1E3A34; font-weight:700; }
+  .row .name small { display:block; font-size:14px; color:#A29A8C; font-weight:400; margin-top:3px; letter-spacing:.01em; }
+  .track { height:10px; background:#EFEAE0; border-radius:5px; margin-right:34px; overflow:hidden; }
+  .track div { height:100%; border-radius:5px; }
+  .row .amt { font-size:24px; color:#1E3A34; font-weight:700; text-align:right; letter-spacing:-.01em; }
+  .row .amt small { font-size:14px; color:#A29A8C; font-weight:400; }
+  .row .pct { font-size:17px; color:#8D8577; text-align:right; font-variant-numeric:tabular-nums; }
+
+  .totalrow {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-top:16px; padding:22px 26px;
+    background:#F4F0E6; border-radius:14px;
+    border-left:5px solid #1E3A34;
+  }
+  .totalrow .l { font-size:19px; color:#4A5A55; font-weight:700; letter-spacing:.03em; }
+  .totalrow .r { font-size:32px; color:#1E3A34; font-weight:700; letter-spacing:-.02em; }
+  .totalrow .r small { font-size:16px; color:#8D8577; font-weight:400; letter-spacing:0; }
+
+  /* ---------- DAYS ---------- */
+  .days { padding: 50px 64px 0; }
+  .day {
+    display:grid; grid-template-columns: 96px 1fr;
+    gap:0; margin-bottom:0;
+  }
+  .dayleft { position:relative; padding-top:6px; }
+  .dayleft .d { font-size:15px; color:#C8553D; font-weight:700; letter-spacing:.13em; }
+  .dayleft .n {
+    font-size:44px; color:#1E3A34; font-weight:700;
+    letter-spacing:-.05em; line-height:1; margin-top:2px;
+  }
+  .dayleft::after {
+    content:""; position:absolute; left:44px; top:86px; bottom:-8px;
+    width:2px; background:#E8E2D6;
+  }
+  .day:last-of-type .dayleft::after { display:none; }
+
+  .daybody { padding-bottom:30px; }
+  .daybody .head {
+    display:flex; align-items:center; gap:12px; margin-bottom:14px;
+  }
+  .daybody .head h3 { font-size:24px; color:#1E3A34; font-weight:700; letter-spacing:-.01em; }
+  .tag {
+    font-size:13px; color:#5B7C99; background:#EAF0F5;
+    padding:4px 11px; border-radius:20px; letter-spacing:.03em; font-weight:600;
+  }
+  .tag.gold { color:#96731F; background:#F8F0DC; }
+  .tag.red { color:#A8442F; background:#FBE9E3; }
+
+  .meal {
+    display:grid; grid-template-columns: 62px 1fr 118px;
+    align-items:baseline; padding:11px 0;
+    border-bottom:1px dashed #E8E2D6;
+  }
+  .meal:last-child { border-bottom:none; }
+  .meal .when { font-size:15px; color:#A29A8C; letter-spacing:.04em; }
+  .meal .what { font-size:20px; color:#2E3D38; }
+  .meal .what b { font-weight:700; }
+  .meal .what span { font-size:15px; color:#A29A8C; margin-left:9px; }
+  .meal .cost { font-size:20px; color:#1E3A34; font-weight:700; text-align:right; font-variant-numeric:tabular-nums; }
+
+  /* ---------- ALERT ---------- */
+  .alert {
+    margin: 44px 64px 0;
+    background: linear-gradient(100deg, #FDF1EC 0%, #FAF3E4 100%);
+    border-left:5px solid #C8553D;
+    border-radius:0 14px 14px 0;
+    padding:26px 30px;
+  }
+  .alert .t {
+    display:flex; align-items:center; gap:10px;
+    font-size:20px; color:#A8442F; font-weight:700; margin-bottom:14px;
+  }
+  .alert .t svg { flex:none; }
+  .alert ul { list-style:none; }
+  .alert li {
+    font-size:17px; color:#6A5348; line-height:1.72;
+    padding-left:18px; position:relative;
+  }
+  .alert li::before {
+    content:""; position:absolute; left:0; top:11px;
+    width:6px; height:6px; border-radius:50%; background:#C89B3C;
+  }
+  .alert li b { color:#8A3D2B; font-weight:700; }
+
+  /* ---------- FOOTER ---------- */
+  .foot {
+    margin-top:42px; padding:26px 64px 40px;
+    border-top:1px solid #E8E2D6;
+  }
+  .foot .src { font-size:14px; color:#A29A8C; line-height:1.85; }
+  .foot .src b { color:#8D8577; font-weight:700; }
+  .foot .meta {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-top:18px; padding-top:16px; border-top:1px dashed #E8E2D6;
+  }
+  .foot .meta .l { font-size:14px; color:#B5AD9E; letter-spacing:.04em; }
+  .foot .meta .r { font-size:14px; color:#B5AD9E; letter-spacing:.06em; }
+</style>
+
+<div class="page">
+
+  <div class="hero">
+    <div class="kicker">HANGZHOU · 5 DAYS 4 NIGHTS</div>
+    <div class="h1">杭州五日<br><em>纯吃</em>路线</div>
+    <div class="sub">11月10日 – 11月14日 &nbsp;·&nbsp; 2 人 &nbsp;·&nbsp; 西湖湖滨片区</div>
+
+    <div class="herobottom">
+      <div class="bigmoney">
+        <span class="cur">¥</span>
+        <span class="num">1,572</span>
+        <span class="unit">/ 人均</span>
+      </div>
+      <div class="delta">
+        <div class="k">对 1,500 目标</div>
+        <div class="v">超 72 元</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sectitle">
+      <div class="bar"></div>
+      <h2>预算构成</h2>
+      <div class="note">2 人合计 ¥3,144</div>
+    </div>
+
+    <div class="stack">
+      <div style="width:42%;background:#1E3A34"></div>
+      <div style="width:45%;background:#C8553D"></div>
+      <div style="width:6%;background:#C89B3C"></div>
+      <div style="width:7%;background:#5B7C99"></div>
+    </div>
+    <div class="legend">
+      <span><i style="background:#1E3A34"></i>住宿</span>
+      <span><i style="background:#C8553D"></i>餐饮</span>
+      <span><i style="background:#C89B3C"></i>门票</span>
+      <span><i style="background:#5B7C99"></i>交通</span>
+    </div>
+
+    <div class="rows">
+      <div class="row">
+        <div class="name">住宿<small>4 晚 · 双床房 · 湖滨</small></div>
+        <div class="track"><div style="width:42%;background:#1E3A34"></div></div>
+        <div class="amt">660 <small>元</small></div>
+        <div class="pct">42%</div>
+      </div>
+      <div class="row">
+        <div class="name">餐饮<small>8 正餐 + 早点</small></div>
+        <div class="track"><div style="width:45%;background:#C8553D"></div></div>
+        <div class="amt">714 <small>元</small></div>
+        <div class="pct">45%</div>
+      </div>
+      <div class="row">
+        <div class="name">门票<small>雷峰塔 + 游船</small></div>
+        <div class="track"><div style="width:6%;background:#C89B3C"></div></div>
+        <div class="amt">95 <small>元</small></div>
+        <div class="pct">6%</div>
+      </div>
+      <div class="row">
+        <div class="name">交通<small>机场往返 + 市内</small></div>
+        <div class="track"><div style="width:7%;background:#5B7C99"></div></div>
+        <div class="amt">103 <small>元</small></div>
+        <div class="pct">7%</div>
+      </div>
+    </div>
+
+    <div class="totalrow">
+      <div class="l">人均合计</div>
+      <div class="r">¥1,572 <small>／ 2 人 ¥3,144</small></div>
+    </div>
+  </div>
+
+  <div class="days">
+    <div class="sectitle" style="margin-bottom:30px">
+      <div class="bar"></div>
+      <h2>五天怎么吃</h2>
+      <div class="note">价格 = 2 人合计</div>
+    </div>
+
+    <div class="day">
+      <div class="dayleft">
+        <div class="d">D1</div>
+        <div class="n">10</div>
+      </div>
+      <div class="daybody">
+        <div class="head"><h3>抵达 · 见面面</h3><span class="tag">周二</span></div>
+        <div class="meal"><div class="when">午餐</div><div class="what"><b>奎元馆</b><span>解放路154号 · 百年老号</span></div><div class="cost">¥120</div></div>
+        <div class="meal"><div class="when">晚餐</div><div class="what"><b>外婆家</b><span>in77 C1区2F · 需取号</span></div><div class="cost">¥108</div></div>
+      </div>
+    </div>
+
+    <div class="day">
+      <div class="dayleft">
+        <div class="d">D2</div>
+        <div class="n">11</div>
+      </div>
+      <div class="daybody">
+        <div class="head"><h3>孤山 · 最贵一顿</h3><span class="tag red">全场最高</span></div>
+        <div class="meal"><div class="when">午餐</div><div class="what"><b>楼外楼</b><span>孤山路30号 · 西湖醋鱼</span></div><div class="cost">¥294</div></div>
+        <div class="meal"><div class="when">晚餐</div><div class="what"><b>大牌大</b><span>学士路41号 · 杭帮菜</span></div><div class="cost">¥156</div></div>
+      </div>
+    </div>
+
+    <div class="day">
+      <div class="dayleft">
+        <div class="d">D3</div>
+        <div class="n">12</div>
+      </div>
+      <div class="daybody">
+        <div class="head"><h3>湖滨 · 夜宵局</h3><span class="tag">周四</span></div>
+        <div class="meal"><div class="when">午餐</div><div class="what"><b>知味观</b><span>仁和路83号 · 一楼点心</span></div><div class="cost">¥164</div></div>
+        <div class="meal"><div class="when">晚餐</div><div class="what"><b>老头儿油爆虾</b><span>胜利河霞湾巷272号</span></div><div class="cost">¥172</div></div>
+      </div>
+    </div>
+
+    <div class="day">
+      <div class="dayleft">
+        <div class="d">D4</div>
+        <div class="n">13</div>
+      </div>
+      <div class="daybody">
+        <div class="head"><h3>南山路 · 收尾</h3><span class="tag">周五</span></div>
+        <div class="meal"><div class="when">午餐</div><div class="what"><b>菊英面店</b><span>中山南路 · 片儿川</span></div><div class="cost">¥62</div></div>
+        <div class="meal"><div class="when">晚餐</div><div class="what"><b>新白鹿</b><span>IN77 C3区3楼</span></div><div class="cost">¥142</div></div>
+      </div>
+    </div>
+
+    <div class="day">
+      <div class="dayleft">
+        <div class="d">D5</div>
+        <div class="n">14</div>
+      </div>
+      <div class="daybody">
+        <div class="head"><h3>龙井 · 走前一顿</h3><span class="tag">周六</span></div>
+        <div class="meal"><div class="when">午餐</div><div class="what"><b>绿茶餐厅</b><span>龙井路83号 · 景区环境</span></div><div class="cost">¥176</div></div>
+        <div class="meal"><div class="when">任意早</div><div class="what"><b>新丰小吃</b><span>庆春路209号 · 小吃早点</span></div><div class="cost">¥36</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert">
+    <div class="t">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C8553D" stroke-width="2.4" stroke-linecap="round">
+        <path d="M12 9v5M12 17.5v.5"/><circle cx="12" cy="12" r="9"/>
+      </svg>
+      出发前必须做的一件事
+    </div>
+    <ul>
+      <li><b>灵隐飞来峰</b>已免门票，但要走<b>实名预约</b>：每天 8:00 放号，最早提前 7 天、且不能约当天。11/10 入园 → <b>11/3 早 8:00 抢</b>，渠道是微信/支付宝「杭州灵隐飞来峰」小程序。</li>
+      <li>住宿 ¥330/间/晚是旺季估算，<b>不是实时价</b>。订房锁死「11/10 入住 + 双床 + 免费取消」，先订可退的。</li>
+      <li>表里所有餐饮价是<b>用户账单历史均值，不是当日菜单价</b>，按 ±20% 留余量。</li>
+    </ul>
+  </div>
+
+  <div class="foot">
+    <div class="src">
+      <b>数据来源</b>　餐饮人均：携程美食单店页「来自用户反馈」· 门票：雷峰塔官网 / 西湖游船管理处 / 杭州市文广旅游局 · 交通：杭州地铁票务规则、市交通运输局燃油附加费通知 · 灵隐免票：杭州市政协网 2025-11-19 通告
+    </div>
+    <div class="meta">
+      <div class="l">编制基准日 2026-11-01　·　价格误差 ±20%</div>
+      <div class="r">TRAVEL AGENT</div>
+    </div>
+  </div>
+
+</div>
+</html>

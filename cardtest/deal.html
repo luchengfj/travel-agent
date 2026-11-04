@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#FBF8F2; font-family:"Microsoft YaHei",sans-serif; -webkit-font-smoothing:antialiased; font-feature-settings:"tnum"; }
+  .page { width:1080px; }
+
+  .hero {
+    background:linear-gradient(150deg,#16302B 0%,#1E3A34 48%,#2A4F46 100%);
+    padding:54px 64px 48px; position:relative; overflow:hidden;
+  }
+  .hero::after {
+    content:""; position:absolute; right:-120px; top:-160px; width:420px; height:420px;
+    border-radius:50%; background:radial-gradient(circle,rgba(200,155,60,.24) 0%,rgba(200,155,60,0) 68%);
+  }
+  .kicker { font-size:15px; letter-spacing:.34em; color:#7FA398; font-weight:600; margin-bottom:20px; }
+  .h1 { font-size:58px; font-weight:700; color:#fff; letter-spacing:-.02em; line-height:1.08; }
+  .h1 em { font-style:normal; color:#D8B968; }
+  .sub { font-size:19px; color:#A9C4BB; margin-top:15px; }
+
+  .kpis { display:flex; gap:16px; margin-top:38px; position:relative; z-index:2; }
+  .kpi {
+    flex:1; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12);
+    border-radius:14px; padding:20px 22px;
+  }
+  .kpi .k { font-size:14px; color:#8FB0A6; letter-spacing:.09em; margin-bottom:9px; }
+  .kpi .v { font-size:38px; color:#fff; font-weight:700; letter-spacing:-.03em; line-height:1; }
+  .kpi .v small { font-size:16px; color:#94B3A9; font-weight:400; letter-spacing:0; margin-left:4px; }
+  .kpi .v.gold { color:#D8B968; }
+  .kpi .v.coral { color:#F0A08A; }
+
+  .sec { padding:44px 64px 0; }
+  .sectitle { display:flex; align-items:center; gap:14px; margin-bottom:8px; }
+  .sectitle .bar { width:5px; height:26px; background:#C8553D; border-radius:3px; }
+  .sectitle h2 { font-size:30px; font-weight:700; color:#1E3A34; letter-spacing:-.01em; }
+  .sectitle .note { font-size:15px; color:#A29A8C; margin-left:auto; }
+
+  .axis {
+    display:grid; grid-template-columns:262px 1fr 78px 96px;
+    padding:0 0 10px; margin-top:20px;
+    border-bottom:2px solid #1E3A34;
+  }
+  .axis div { font-size:13px; color:#A29A8C; letter-spacing:.12em; }
+  .axis div:nth-child(3), .axis div:nth-child(4) { text-align:right; }
+
+  .r {
+    display:grid; grid-template-columns:262px 1fr 78px 96px;
+    align-items:center; padding:13px 0;
+    border-bottom:1px solid #EDE7DA;
+  }
+  .r .nm { font-size:20px; color:#1E3A34; font-weight:700; letter-spacing:-.01em; }
+  .r .nm small { display:block; font-size:13px; color:#A29A8C; font-weight:400; margin-top:2px; }
+  .r .nm.hi small { color:#C8553D; }
+  .barwrap { padding-right:22px; }
+  .bar { height:13px; border-radius:7px; background:#EFEAE0; overflow:hidden; }
+  .bar div { height:100%; border-radius:7px; }
+  .r .one { font-size:19px; color:#5A6B65; text-align:right; font-variant-numeric:tabular-nums; }
+  .r .two { font-size:21px; color:#1E3A34; font-weight:700; text-align:right; font-variant-numeric:tabular-nums; }
+  .r .two.cheap { color:#2F7D5E; }
+  .r .two.dear { color:#C8553D; }
+
+  .combos { display:flex; gap:16px; margin:36px 64px 0; }
+  .combo { flex:1; border-radius:16px; padding:24px 26px; }
+  .combo.low { background:#EAF3EC; border:1.5px solid #C6DFCE; }
+  .combo.high { background:#FBEDE7; border:1.5px solid #F0CFC2; }
+  .combo .t { font-size:14px; letter-spacing:.11em; font-weight:700; margin-bottom:11px; }
+  .combo.low .t { color:#2F7D5E; }
+  .combo.high .t { color:#C8553D; }
+  .combo .m { font-size:17px; color:#4A5A55; line-height:1.62; }
+  .combo .m b { color:#1E3A34; }
+  .combo .p { margin-top:14px; padding-top:13px; border-top:1px dashed rgba(0,0,0,.12); }
+  .combo .p span { font-size:14px; color:#8D8577; }
+  .combo .p b { font-size:30px; letter-spacing:-.03em; }
+  .combo.low .p b { color:#2F7D5E; }
+  .combo.high .p b { color:#C8553D; }
+
+  .alert {
+    margin:38px 64px 0; background:linear-gradient(100deg,#FDF1EC,#FAF3E4);
+    border-left:5px solid #C89B3C; border-radius:0 14px 14px 0; padding:24px 30px;
+  }
+  .alert .t { display:flex; align-items:center; gap:10px; font-size:19px; color:#96731F; font-weight:700; margin-bottom:13px; }
+  .alert ul { list-style:none; }
+  .alert li { font-size:16.5px; color:#6A5348; line-height:1.75; padding-left:18px; position:relative; }
+  .alert li::before { content:""; position:absolute; left:0; top:11px; width:6px; height:6px; border-radius:50%; background:#C8553D; }
+  .alert li b { color:#8A3D2B; }
+
+  .foot { margin-top:38px; padding:24px 64px 38px; border-top:1px solid #E8E2D6; }
+  .foot .src { font-size:13.5px; color:#A29A8C; line-height:1.85; }
+  .foot .src b { color:#8D8577; }
+  .foot .meta { display:flex; justify-content:space-between; margin-top:16px; padding-top:15px; border-top:1px dashed #E8E2D6; }
+  .foot .meta div { font-size:13.5px; color:#B5AD9E; letter-spacing:.05em; }
+</style>
+
+<div class="page">
+  <div class="hero">
+    <div class="kicker">DEAL MODE · PRICE COMPARISON</div>
+    <div class="h1">杭州 <em>14</em> 家店<br>真实人均对照</div>
+    <div class="sub">价格 = 两人就餐的账单均值 · 抓取于 2026-11-01</div>
+    <div class="kpis">
+      <div class="kpi"><div class="k">最贵一家</div><div class="v coral">¥147<small>/人</small></div></div>
+      <div class="kpi"><div class="k">最便宜一家</div><div class="v">¥18<small>/人</small></div></div>
+      <div class="kpi"><div class="k">14 家均值</div><div class="v gold">¥77<small>/人</small></div></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sectitle">
+      <div class="bar"></div>
+      <h2>人均排序</h2>
+      <div class="note">条形长度 = 人均价格</div>
+    </div>
+
+    <div class="axis">
+      <div>店名 / 位置</div><div>价格区间</div><div>人均</div><div>两人合计</div>
+    </div>
+
+    <div class="r"><div class="nm hi">楼外楼<small>孤山路30号 · 景区老字号</small></div>
+      <div class="barwrap"><div class="bar"><div style="width:100%;background:#C8553D"></div></div></div>
+      <div class="one">¥147</div><div class="two dear">¥294</div></div>
+
+    <div class="r"><div class="nm hi">小厨师·沈家门<small>胜利河霞湾巷228号 · 海鲜</small></div>
+      <div class="barwrap"><div class="bar"><div style="width:96%;background:#C8553D"></div></div></div>
+      <div class="one">¥141</div><div class="two dear">¥282</div></div>
+
+    <div class="r"><div class="nm">德明饭店<small>八卦新村 · 老牌杭帮菜</small></div>
+      <div class="barwrap"><div class="bar"><div style="width:80%;background:#C89B3C"></div></div></div>
+      <div class="one">¥117</div><div class="two">¥234</div></div>
+
+    <div class="r"><div class="nm">绿茶餐厅<small>龙井路83号 · 景区环境</small></div>
+      <div class="barwrap"><div class="bar"><div style="width:60%;background:#1E3A34"></div></div></div>
+      <div class="one">¥88</div><div class="two">¥176</div></div>
+
+    <div class="r"><div class="nm">老头儿油爆虾<small>胜利河霞湾巷272号 · 夜宵</small></div>
+      <div class="barwrap"><div class="bar"><div style="width:59%;background:#1E3A34"></div></div></div>
+      <div class="one">¥86</div><div class="two">¥172</div></div>
+
+    <div class="r"><div class="nm">新周记<small>鼓楼店 · 夜宵</small></div>
+      <div class="barwrap"><div class="bar"><div style="width:58%;background:#1E3A34"></div></div></div>
+      <div class="one">¥85</div><div class="two">¥170</div></div>
+
+    <div class="r"><div class="nm">知味观<small>仁和路83号 · 一楼点心一绝</small></div>
+      <div class="barwrap"><div class="bar"><div style="width:56%;background:#1E3A34"></div></div></div>
+      <div class="one">¥82</div><div class="two">¥164</div></div>
+
+    <div class="r"><div class="nm">大牌大<small>学士路41号 · 传统杭帮菜</small></div>
+      <div class="barwrap"><div class="bar"><div style="width:53%;background:#1E3A34"></div></div></div>
+      <div class="one">¥78</div><div class="two">¥156</div></div>
+
+    <div class="r"><div class="nm">新白鹿<small>IN77 C3区3楼 · 本地连锁</small></div>
+      <div class="barwrap"><div class="bar"><div style="width:48%;background:#1E3A34"></div></div></div>
+      <div class="one">¥71</div><div class="two">¥142</div></div>
+
+    <div class="r"><div class="nm">樟树底食府<small>胜利河霞湾巷294号 · 本地口味</small></div>
+      <div class="barwrap"><div class="bar"><div style="width:44%;background:#1E3A34"></div></div></div>
+      <div class="one">¥64</div><div class="two cheap">¥128</div></div>
+
+    <div class="r"><div class="nm">奎元馆<small>解放路154号 · 百年面馆</small></div>
+      <div class="barwrap"><div class="bar"><div style="width:41%;background:#1E3A34"></div></div></div>
+      <div class="one">¥60</div><div class="two cheap">¥120</div></div>
+
+    <div class="r"><div class="nm">外婆家<small>in77 C1区2F · 全场最低连锁</small></div>
+      <div class="barwrap"><div class="bar"><div style="width:37%;background:#1E3A34"></div></div></div>
+      <div class="one">¥54</div><div class="two cheap">¥108</div></div>
+
+    <div class="r"><div class="nm">菊英面店<small>中山南路 · 片儿川</small></div>
+      <div class="barwrap"><div class="bar"><div style="width:21%;background:#5B7C99"></div></div></div>
+      <div class="one">¥31</div><div class="two cheap">¥62</div></div>
+
+    <div class="r"><div class="nm">新丰小吃<small>庆春路209号 · 早点</small></div>
+      <div class="barwrap"><div class="bar"><div style="width:12%;background:#5B7C99"></div></div></div>
+      <div class="one">¥18</div><div class="two cheap">¥36</div></div>
+  </div>
+
+  <div class="combos">
+    <div class="combo low">
+      <div class="t">最省一顿组合</div>
+      <div class="m"><b>菊英面店</b> ¥62<br>＋ <b>樟树底食府</b> ¥128</div>
+      <div class="p"><span>2 人合计</span>　<b>¥190</b></div>
+    </div>
+    <div class="combo high">
+      <div class="t">最贵一顿组合</div>
+      <div class="m"><b>楼外楼</b> ¥294<br>＋ <b>小厨师·沈家门</b> ¥282</div>
+      <div class="p"><span>2 人合计</span>　<b>¥576</b></div>
+    </div>
+  </div>
+
+  <div class="alert">
+    <div class="t">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#C89B3C" stroke-width="2.4" stroke-linecap="round">
+        <path d="M12 9v5M12 17.5v.5"/><circle cx="12" cy="12" r="9"/>
+      </svg>
+      三个容易踩的坑
+    </div>
+    <ul>
+      <li>表里是<b>用户点单后的历史账单均值，不是当日菜单价</b>。景区店换季调价常见，预算按 ±20% 留余量。</li>
+      <li>外婆家 <b>¥54 是 in77 店</b>，涌金店临湖要 ¥85，别拿着一个价去另一个店。</li>
+      <li>奎元馆携程 ¥60 / 城市惠 ¥45，<b>本表按高值报</b>；胜利河只确认了老头儿、小厨师、樟树底三家，「虾掰」查不到数据。</li>
+    </ul>
+  </div>
+
+  <div class="foot">
+    <div class="src">
+      <b>数据来源</b>　携程美食单店详情页「来自用户反馈」人均字段（you.ctrip.com/food/hangzhou14/*），逐店抓取，未登录、服务端渲染；部分门店交叉核对城市惠（cityhui.com）口径。
+    </div>
+    <div class="meta">
+      <div>抓取日期 2026-11-01　·　价格为历史均值，误差 ±20%</div>
+      <div>DEAL MODE</div>
+    </div>
+  </div>
+</div>
+</html>

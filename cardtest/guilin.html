@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { background:#FBF8F2; }
+  body {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "tnum";
+  }
+  .page { width:1080px; }
+
+  /* ---------- HEADER ---------- */
+  .hero {
+    background: linear-gradient(150deg, #16302B 0%, #1E3A34 45%, #2A4F46 100%);
+    padding: 54px 64px 46px;
+    position: relative; overflow: hidden;
+  }
+  .hero::after {
+    content:""; position:absolute; right:-140px; top:-140px;
+    width:440px; height:440px; border-radius:50%;
+    background: radial-gradient(circle, rgba(200,155,60,.22) 0%, rgba(200,155,60,0) 68%);
+  }
+  .kicker { font-size:15px; letter-spacing:.34em; color:#7FA398; font-weight:600; text-transform:uppercase; margin-bottom:20px; }
+  .h1 { font-size:58px; font-weight:700; color:#fff; letter-spacing:-.02em; line-height:1.08; }
+  .h1 em { font-style:normal; color:#D8B968; }
+  .sub { font-size:19px; color:#A9C4BB; margin-top:15px; letter-spacing:.02em; }
+
+  .herobottom {
+    display:flex; align-items:flex-end; justify-content:space-between;
+    margin-top:42px; padding-top:28px; border-top:1px solid rgba(255,255,255,.13);
+  }
+  .bigmoney { display:flex; align-items:baseline; gap:6px; }
+  .bigmoney .cur { font-size:40px; color:#D8B968; font-weight:400; }
+  .bigmoney .num { font-size:104px; font-weight:700; color:#fff; letter-spacing:-.045em; line-height:.92; }
+  .bigmoney .unit { font-size:22px; color:#94B3A9; margin-left:12px; }
+  .delta { text-align:right; }
+  .delta .k { font-size:15px; color:#7FA398; letter-spacing:.1em; margin-bottom:8px; }
+  .delta .v {
+    display:inline-block; background:rgba(200,155,60,.16); border:1px solid rgba(200,155,60,.45);
+    color:#E8C879; font-size:27px; font-weight:700; padding:8px 20px; border-radius:10px; letter-spacing:-.01em;
+  }
+
+  /* ---------- SECTION ---------- */
+  .sec { padding: 46px 64px 0; }
+  .sectitle { display:flex; align-items:center; gap:14px; margin-bottom:26px; }
+  .sectitle .bar { width:5px; height:26px; background:#C8553D; border-radius:3px; }
+  .sectitle h2 { font-size:30px; font-weight:700; color:#1E3A34; letter-spacing:-.01em; }
+  .sectitle .note { font-size:16px; color:#A29A8C; margin-left:auto; letter-spacing:.02em; }
+
+  /* ---------- 3-VERSION ---------- */
+  .vers { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  .vcard { border-radius:16px; padding:24px 24px 22px; border:1.5px solid #E8E2D6; background:#FFFDF9; }
+  .vcard.best { border-color:#C89B3C; background:linear-gradient(180deg,#FDF8EC,#FFFDF9); box-shadow:0 6px 22px rgba(200,155,60,.12); }
+  .vcard .vt { display:flex; align-items:center; gap:9px; font-size:18px; font-weight:700; color:#1E3A34; margin-bottom:4px; }
+  .vcard .vt .pill { font-size:11px; font-weight:700; color:#fff; background:#C89B3C; padding:2px 9px; border-radius:20px; letter-spacing:.05em; }
+  .vcard .vp { font-size:36px; font-weight:700; color:#1E3A34; letter-spacing:-.03em; margin:8px 0 2px; }
+  .vcard .vp small { font-size:15px; color:#A29A8C; font-weight:400; }
+  .vcard .vd { font-size:13.5px; color:#A29A8C; margin-bottom:16px; }
+  .vcard .li { display:flex; justify-content:space-between; font-size:15px; color:#4A5A55; padding:7px 0; border-top:1px dashed #ECE6DA; }
+  .vcard .li b { color:#1E3A34; font-weight:700; font-variant-numeric:tabular-nums; }
+  .vcard .li:first-of-type { border-top:none; }
+
+  /* ---------- DAYS ---------- */
+  .days { padding: 46px 64px 0; }
+  .day { display:grid; grid-template-columns: 96px 1fr; gap:0; }
+  .dayleft { position:relative; padding-top:6px; }
+  .dayleft .d { font-size:15px; color:#C8553D; font-weight:700; letter-spacing:.13em; }
+  .dayleft .n { font-size:44px; color:#1E3A34; font-weight:700; letter-spacing:-.05em; line-height:1; margin-top:2px; }
+  .dayleft::after { content:""; position:absolute; left:44px; top:86px; bottom:-8px; width:2px; background:#E8E2D6; }
+  .day:last-of-type .dayleft::after { display:none; }
+  .daybody { padding-bottom:30px; }
+  .daybody .head { display:flex; align-items:center; gap:12px; margin-bottom:14px; }
+  .daybody .head h3 { font-size:24px; color:#1E3A34; font-weight:700; letter-spacing:-.01em; }
+  .tag { font-size:13px; color:#5B7C99; background:#EAF0F5; padding:4px 11px; border-radius:20px; letter-spacing:.03em; font-weight:600; }
+  .tag.gold { color:#96731F; background:#F8F0DC; }
+  .tag.red { color:#A8442F; background:#FBE9E3; }
+  .meal { display:grid; grid-template-columns: 62px 1fr 118px; align-items:baseline; padding:11px 0; border-bottom:1px dashed #E8E2D6; }
+  .meal:last-child { border-bottom:none; }
+  .meal .when { font-size:15px; color:#A29A8C; letter-spacing:.04em; }
+  .meal .what { font-size:20px; color:#2E3D38; }
+  .meal .what b { font-weight:700; }
+  .meal .what span { font-size:15px; color:#A29A8C; margin-left:9px; }
+  .meal .cost { font-size:20px; color:#1E3A34; font-weight:700; text-align:right; font-variant-numeric:tabular-nums; }
+
+  /* ---------- ROUTE ---------- */
+  .route { padding: 6px 0 2px; }
+  .route svg { width:100%; height:auto; display:block; }
+  .route .rnote { font-size:14.5px; color:#A29A8C; line-height:1.75; margin-top:14px; padding:0 4px; }
+  .route .rnote b { color:#8D8577; font-weight:700; }
+
+  /* ---------- ALERT ---------- */
+  .alert {
+    margin: 44px 64px 0; background: linear-gradient(100deg, #FDF1EC 0%, #FAF3E4 100%);
+    border-left:5px solid #C8553D; border-radius:0 14px 14px 0; padding:26px 30px;
+  }
+  .alert .t { display:flex; align-items:center; gap:10px; font-size:20px; color:#A8442F; font-weight:700; margin-bottom:14px; }
+  .alert ul { list-style:none; }
+  .alert li { font-size:17px; color:#6A5348; line-height:1.72; padding-left:18px; position:relative; }
+  .alert li::before { content:""; position:absolute; left:0; top:11px; width:6px; height:6px; border-radius:50%; background:#C89B3C; }
+  .alert li b { color:#8A3D2B; font-weight:700; }
+
+  /* ---------- FOOTER ---------- */
+  .foot { margin-top:42px; padding:26px 64px 40px; border-top:1px solid #E8E2D6; }
+  .foot .src { font-size:14px; color:#A29A8C; line-height:1.85; }
+  .foot .src b { color:#8D8577; font-weight:700; }
+  .foot .meta { display:flex; justify-content:space-between; align-items:center; margin-top:18px; padding-top:16px; border-top:1px dashed #E8E2D6; }
+  .foot .meta div { font-size:14px; color:#B5AD9E; letter-spacing:.04em; }
+
+  /* ---------- WEATHER ---------- */
+  .wx { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  .wxday { background:#FFFDF9; border:1.5px solid #E8E2D6; border-radius:14px; padding:18px 16px; text-align:center; }
+  .wxday .d { font-size:14px; color:#A29A8C; letter-spacing:.08em; margin-bottom:6px; }
+  .wxday .date { font-size:15px; color:#1E3A34; font-weight:700; margin-bottom:12px; }
+  .wxday .icon { font-size:34px; margin-bottom:9px; }
+  .wxday .t { font-size:25px; font-weight:700; color:#1E3A34; letter-spacing:-.02em; }
+  .wxday .t small { font-size:14px; color:#A29A8C; font-weight:400; }
+  .wxday .r { font-size:13.5px; color:#5B7C99; margin-top:7px; }
+  .wxnote { display:flex; gap:14px; margin-top:18px; flex-wrap:wrap; }
+  .wxnote .chip { background:#EAF0F5; border-radius:10px; padding:10px 15px; font-size:14.5px; color:#3E5C75; flex:1; min-width:200px; line-height:1.5; }
+  .wxnote .chip b { color:#2A4F46; }
+</style>
+
+<div class="page">
+  <div class="hero">
+    <div class="kicker">GUILIN · YANGSHUO · 4 DAYS 3 NIGHTS</div>
+    <div class="h1">桂林阳朔<br><em>山水+美食</em>路线</div>
+    <div class="sub">12月1日 – 12月4日 &nbsp;·&nbsp; 2 人 &nbsp;·&nbsp; 深圳北高铁往返</div>
+
+    <div class="herobottom">
+      <div class="bigmoney">
+        <span class="cur">¥</span>
+        <span class="num">1,700</span>
+        <span class="unit">/ 人均 · 均衡档</span>
+      </div>
+      <div class="delta">
+        <div class="k">高铁往返已占</div>
+        <div class="v">¥551 / 人</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sectitle">
+      <div class="bar"></div>
+      <h2>三档预算骨架</h2>
+      <div class="note">人均 · 2 人同行</div>
+    </div>
+
+    <div class="vers">
+      <div class="vcard">
+        <div class="vt">省钱档</div>
+        <div class="vp">1,336<small> /人</small></div>
+        <div class="vd">砍掉漓江与溶洞，住经济客栈</div>
+        <div class="li"><span>交通（往返）</span><b>551</b></div>
+        <div class="li"><span>住宿 3 晚</span><b>420</b></div>
+        <div class="li"><span>餐饮 3 天</span><b>270</b></div>
+        <div class="li"><span>门票</span><b>95</b></div>
+      </div>
+
+      <div class="vcard best">
+        <div class="vt">均衡档 <span class="pill">推荐</span></div>
+        <div class="vp">1,700<small> /人</small></div>
+        <div class="vd">山水+美食都照顾到</div>
+        <div class="li"><span>交通（往返）</span><b>551</b></div>
+        <div class="li"><span>住宿 3 晚</span><b>504</b></div>
+        <div class="li"><span>餐饮 3 天</span><b>325</b></div>
+        <div class="li"><span>门票</span><b>200</b></div>
+        <div class="li"><span>市内交通</span><b>120</b></div>
+      </div>
+
+      <div class="vcard">
+        <div class="vt">深度档</div>
+        <div class="vp">2,336<small> /人</small></div>
+        <div class="vd">加印象刘三姐 + 舒适酒店</div>
+        <div class="li"><span>交通（+演出）</span><b>686</b></div>
+        <div class="li"><span>住宿 3 晚</span><b>690</b></div>
+        <div class="li"><span>餐饮 3 天</span><b>510</b></div>
+        <div class="li"><span>门票+市内</span><b>450</b></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="days">
+    <div class="sectitle" style="padding:0; margin-bottom:24px;">
+      <div class="bar"></div>
+      <h2>均衡档 · 逐日行程</h2>
+      <div class="note">餐饮/门票为 2 人合计 · 未标价格的是免费活动</div>
+    </div>
+
+    <div class="day">
+      <div class="dayleft"><div class="d">DAY 1</div><div class="n">12/1</div></div>
+      <div class="daybody">
+        <div class="head"><h3>周二 · 高铁日 + 西街</h3><span class="tag">抵达</span></div>
+        <div class="meal"><div class="when">午</div><div class="what">深圳北 → 阳朔 <span>高铁 G 字头 · 二等座 ¥275.5/人</span></div><div class="cost">¥551</div></div>
+        <div class="meal"><div class="when">晚</div><div class="what">西街 · 大师傅金奖啤酒鱼 <span>必打卡榜 No.1</span></div><div class="cost">¥150</div></div>
+      </div>
+    </div>
+
+    <div class="day">
+      <div class="dayleft"><div class="d">DAY 2</div><div class="n">12/2</div></div>
+      <div class="daybody">
+        <div class="head"><h3>周三 · 山水暴走</h3><span class="tag gold">核心</span></div>
+        <div class="meal"><div class="when">上午</div><div class="what">遇龙河竹筏 <span>金龙桥-旧县 · 双人筏 ¥90/人</span></div><div class="cost">¥180</div></div>
+        <div class="meal"><div class="when">下午</div><div class="what">十里画廊电动车骑行 + 月亮山 <span>远观不进景区 · 含包车费</span></div><div class="cost">已含</div></div>
+        <div class="meal"><div class="when">晚</div><div class="what">椿记烧鹅（西街店）<span>老牌烧鹅</span></div><div class="cost">¥162</div></div>
+      </div>
+    </div>
+
+    <div class="day">
+      <div class="dayleft"><div class="d">DAY 3</div><div class="n">12/3</div></div>
+      <div class="daybody">
+        <div class="head"><h3>周四 · 漓江 + 溶洞</h3><span class="tag gold">核心</span></div>
+        <div class="meal"><div class="when">上午</div><div class="what">漓江竹筏 <span>杨堤-兴坪 · 含兴坪古镇 ¥110/人</span></div><div class="cost">¥220</div></div>
+        <div class="meal"><div class="when">下午</div><div class="what">银子岩 <span>喀斯特溶洞 · 可选自费 ¥55/人，不进均衡档</span></div><div class="cost">自费</div></div>
+        <div class="meal"><div class="when">晚</div><div class="what">瘦子桂林米粉 + 田螺酿 <span>阳朔老字号</span></div><div class="cost">¥76</div></div>
+      </div>
+    </div>
+
+    <div class="day">
+      <div class="dayleft"><div class="d">DAY 4</div><div class="n">12/4</div></div>
+      <div class="daybody">
+        <div class="head"><h3>周五 · 返深</h3><span class="tag red">回程</span></div>
+        <div class="meal"><div class="when">上午</div><div class="what">阳朔站 → 深圳北 <span>高铁 G 字头 · 二等座 ¥275.5/人</span></div><div class="cost">¥551</div></div>
+        <div class="meal"><div class="when">备注</div><div class="what">往返程已各计 ¥551/2 人 <span>合计 ¥1,102 与预算表交通项一致</span></div><div class="cost">—</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sectitle">
+      <div class="bar"></div>
+      <h2>天气 · 12/1–12/4 出行带什么</h2>
+      <div class="note">【气候常态·非实时】实时预报出行前 7 天查</div>
+    </div>
+    <div class="wx">
+      <div class="wxday"><div class="d">D1</div><div class="date">12/1 周二</div><div class="icon">🌤️</div><div class="t">12~19<small>°C</small></div><div class="r">晴间多云</div></div>
+      <div class="wxday"><div class="d">D2</div><div class="date">12/2 周三</div><div class="icon">🌤️</div><div class="t">10~18<small>°C</small></div><div class="r">多云转晴</div></div>
+      <div class="wxday"><div class="d">D3</div><div class="date">12/3 周四</div><div class="icon">⛅</div><div class="t">9~17<small>°C</small></div><div class="r">局部小雨</div></div>
+      <div class="wxday"><div class="d">D4</div><div class="date">12/4 周五</div><div class="icon">🌤️</div><div class="t">11~19<small>°C</small></div><div class="r">晴</div></div>
+    </div>
+    <div class="wxnote">
+      <div class="chip"><b>昼夜温差 8–10°C</b>：白天单层长袖，早晚加抓绒 / 薄羽绒，打包「洋葱式」叠穿。</div>
+      <div class="chip"><b>体感偏湿冷</b>：漓江 / 遇龙河竹筏江风大，备防风外套；雨季概率约 25%。</div>
+      <div class="chip"><b>实时更新</b>：11/24 起用本会话天气工具拉 Open-Meteo 实时预报，替换上表并同步出发前清单。</div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sectitle">
+      <div class="bar"></div>
+      <h2>行程动线（示意）</h2>
+      <div class="note">非精确地图 · 以导航为准</div>
+    </div>
+    <div class="route">
+      <svg viewBox="0 0 1080 220" xmlns="http://www.w3.org/2000/svg">
+        <!-- connectors -->
+        <line x1="82"  y1="95" x2="175" y2="95" stroke="#C89B3C" stroke-width="2" stroke-dasharray="6 6"/>
+        <line x1="219" y1="95" x2="312" y2="95" stroke="#C89B3C" stroke-width="2" stroke-dasharray="6 6"/>
+        <line x1="356" y1="95" x2="449" y2="95" stroke="#C89B3C" stroke-width="2" stroke-dasharray="6 6"/>
+        <line x1="493" y1="95" x2="586" y2="95" stroke="#C89B3C" stroke-width="2" stroke-dasharray="6 6"/>
+        <line x1="630" y1="95" x2="723" y2="95" stroke="#C89B3C" stroke-width="2" stroke-dasharray="6 6"/>
+        <line x1="767" y1="95" x2="860" y2="95" stroke="#C89B3C" stroke-width="2" stroke-dasharray="6 6"/>
+        <line x1="904" y1="95" x2="997" y2="95" stroke="#C89B3C" stroke-width="2" stroke-dasharray="6 6"/>
+        <!-- segment labels -->
+        <g fill="#8D8577" font-size="13" text-anchor="middle" font-family="Microsoft YaHei, sans-serif">
+          <text x="128.5" y="80">高铁 3h</text>
+          <text x="265"   y="80">打车 40m</text>
+          <text x="401.5" y="80">包车 25m</text>
+          <text x="539.5" y="80">电动车</text>
+          <text x="676.5" y="80">打车 40m</text>
+          <text x="813.5" y="80">包车 20m</text>
+          <text x="950.5" y="80">高铁 3h</text>
+        </g>
+        <!-- nodes -->
+        <g font-family="Microsoft YaHei, sans-serif" text-anchor="middle">
+          <!-- i0 above -->
+          <circle cx="60" cy="95" r="22" fill="#1E3A34" stroke="#C89B3C" stroke-width="2.5"/>
+          <circle cx="60" cy="95" r="4" fill="#D8B968"/>
+          <text x="60" y="48" font-size="18" font-weight="700" fill="#1E3A34">深圳北</text>
+          <text x="60" y="68" font-size="13" fill="#A29A8C">D1 出发</text>
+          <!-- i1 below -->
+          <circle cx="197" cy="95" r="22" fill="#1E3A34" stroke="#C89B3C" stroke-width="2.5"/>
+          <circle cx="197" cy="95" r="4" fill="#D8B968"/>
+          <text x="197" y="134" font-size="18" font-weight="700" fill="#1E3A34">阳朔站</text>
+          <text x="197" y="154" font-size="13" fill="#A29A8C">D1 抵达</text>
+          <!-- i2 above -->
+          <circle cx="334" cy="95" r="22" fill="#2A4F46" stroke="#C89B3C" stroke-width="2.5"/>
+          <circle cx="334" cy="95" r="4" fill="#D8B968"/>
+          <text x="334" y="48" font-size="18" font-weight="700" fill="#1E3A34">西街·住</text>
+          <text x="334" y="68" font-size="13" fill="#A29A8C">D1–D3 枢纽</text>
+          <!-- i3 below -->
+          <circle cx="471" cy="95" r="22" fill="#1E3A34" stroke="#C89B3C" stroke-width="2.5"/>
+          <circle cx="471" cy="95" r="4" fill="#D8B968"/>
+          <text x="471" y="134" font-size="18" font-weight="700" fill="#1E3A34">遇龙河</text>
+          <text x="471" y="154" font-size="13" fill="#A29A8C">D2</text>
+          <!-- i4 above -->
+          <circle cx="608" cy="95" r="22" fill="#1E3A34" stroke="#C89B3C" stroke-width="2.5"/>
+          <circle cx="608" cy="95" r="4" fill="#D8B968"/>
+          <text x="608" y="48" font-size="18" font-weight="700" fill="#1E3A34">十里画廊</text>
+          <text x="608" y="68" font-size="13" fill="#A29A8C">D2</text>
+          <!-- i5 below -->
+          <circle cx="745" cy="95" r="22" fill="#1E3A34" stroke="#C89B3C" stroke-width="2.5"/>
+          <circle cx="745" cy="95" r="4" fill="#D8B968"/>
+          <text x="745" y="134" font-size="18" font-weight="700" fill="#1E3A34">漓江·兴坪</text>
+          <text x="745" y="154" font-size="13" fill="#A29A8C">D3</text>
+          <!-- i6 above -->
+          <circle cx="882" cy="95" r="22" fill="#1E3A34" stroke="#C89B3C" stroke-width="2.5"/>
+          <circle cx="882" cy="95" r="4" fill="#D8B968"/>
+          <text x="882" y="48" font-size="18" font-weight="700" fill="#1E3A34">银子岩</text>
+          <text x="882" y="68" font-size="13" fill="#A29A8C">D3</text>
+          <!-- i7 below -->
+          <circle cx="1019" cy="95" r="22" fill="#C8553D" stroke="#C89B3C" stroke-width="2.5"/>
+          <circle cx="1019" cy="95" r="4" fill="#F0A08A"/>
+          <text x="1019" y="134" font-size="18" font-weight="700" fill="#1E3A34">返深圳</text>
+          <text x="1019" y="154" font-size="13" fill="#A29A8C">D4</text>
+        </g>
+      </svg>
+      <div class="rnote">西街为住宿枢纽，每晚回住；遇龙河 / 十里画廊·月亮山 / 漓江·兴坪 / 银子岩 为白天出游锚点。距离与耗时均为通用认知（<b>阳朔站位于兴坪镇，距西街约 30km、打车约 40min</b>；遇龙河码头距县城约 12km），出发前用高德 / 百度地图按当日起点核实实际距离与路况。</div>
+    </div>
+  </div>
+
+  <div class="alert">
+    <div class="t">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C8553D" stroke-width="2.4" stroke-linecap="round"><path d="M12 9v5M12 17.5v.5"/><circle cx="12" cy="12" r="9"/></svg>
+      出发前必做的一件事
+    </div>
+    <ul>
+      <li>提前在 <b>铁路 12306 App</b> 买好深圳北→阳朔二等座（约 ¥275.5/人，<b>市场化浮动</b>，以购票当日为准）。12 月虽非最旺季，但 G2244 等热门车次常售罄，<b>当天购票易无座</b>。</li>
+    </ul>
+  </div>
+
+  <div class="alert" style="background:linear-gradient(100deg,#EAF0F5,#F4F0E6); border-left-color:#5B7C99;">
+    <div class="t" style="color:#3E5C75;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5B7C99" stroke-width="2.4" stroke-linecap="round"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/></svg>
+      实时房价 · 登录获取路径（【需登录获取】）
+    </div>
+    <ul>
+      <li>打开 <b>携程 / 去哪儿 App</b> → 搜「阳朔」→ 区域选「西街」或「十里画廊」→ 日期选 <b>12/1 入住、12/4 离店、2 间夜</b> → 价格筛「¥150–400」→ 读列表里的「¥XXX 起 / 晚」。</li>
+      <li>保守基准（非实时，2026-11 携程历史区间）：阳朔西街经济型客栈 <b>¥250–300/间/晚</b>，舒适型 <b>¥330–400/间/晚</b>，高档 <b>¥450+/间/晚</b>。<b>实际以登录后为准</b>，12 月非最旺季但遇周末 / 雾凇天会涨。</li>
+      <li>本卡住宿按 <b>¥336/间/晚 × 3 晚</b>（2 人住 1 间，人均 ¥504）测算。若改舒适型（¥400+），人均住宿涨约 ¥190，总人均破 1900。</li>
+      <li><b>空调 / 供暖</b>：12 月阳朔夜间 9–12°C，老式客栈常无集中供暖、靠空调冷暖机制热。筛选时勾「有空调」并在预订前确认房间能制热；预算/经济型尤其要问清，否则半夜冷。</li>
+    </ul>
+  </div>
+
+  <div class="foot">
+    <div class="src">
+      <b>数据来源</b>　高铁票价 gaotie.com.cn 列车时刻表（2026-11-02 查询）；阳朔景点门票 yangshuolvyou.com 报价表（2026 版）；餐饮人均 携程美食林「阳朔必打卡榜」（2026-11-02）。<br>
+      <b>误差说明</b>　高铁执行票价随季节浮动 ±10%；门票以景区当日窗口价为准；餐饮为携程「来自用户反馈」人均，非当日账单；<b>住宿房价为【需登录获取】</b>，已附登录路径，上方基准值非实时；<b>天气为 12 月气候常态均值（非实时）</b>，11/24 起替换为 Open-Meteo 实时预报。本卡为 plan 模式骨架，选定档位后进入 deal 模式逐项核实实时价。
+    </div>
+    <div class="meta">
+      <div>示例生成日 2026-11-02</div>
+      <div>PLAN MODE</div>
+    </div>
+  </div>
+</div>
+</html>
