@@ -276,8 +276,8 @@
 | `hangzhou-example.md` | 215 | deal / prep / ontrip / review 四模式 · 18 个检查点 |
 | `team-example.md` | 201 | 多角色冲突裁决 · 9 个检查点 |
 | `bangkok-example.md` | 286 | 境外变体（签证/汇率/时差/现金门槛）· 19 个检查点 |
-| `regress.py` | 503 | 一次性自检脚本（详见第 5 节） |
-| `report.md` | 80 | 最近一次回归报告（PASS 50 / FAIL 0 / INFO 2） |
+| `regress.py` | 530 | 一次性自检脚本（详见第 5 节） |
+| `report.md` | 94 | 最近一次回归报告（PASS 65 / FAIL 0 / INFO 2） |
 
 检查点合计 **63 条**（17+18+9+19）。
 
@@ -298,7 +298,7 @@
 | 多角色 | 贴「三个角色的原始交付」整段 | 埋 5 个坑：住宿单位、合计 3420 与分项 3400 差 20、规划员越权估竹筏 ¥75、D3 排不下刘三姐；**餐饮 650 是合理估算属干扰项，不该判错** |
 | 曼谷 | 「12 月中去曼谷玩几天，从深圳走，两个人，预算你看着办」→「12/17-12/20 行，护照没问题，人均 3000 含机票」 | 境外四件事、TDAC 72 小时窗、20 泰铢「谁有资格」、门槛值≠消费值、汇率取整口径 |
 
-### 5.3 `regress.py` 三块检查（503 行）
+### 5.3 `regress.py` 三块检查（530 行）
 - **[A] 提示词结构**：20 个必需一级章节按内容匹配（不按行号，行号会漂移）、7 张图卡规格小节、**21 条硬规则关键词**（每条对应真实翻车点）、出境卡 5 个附加块。
 - **[B] 数字重算**（用 Python 把基准自己也算一遍，防「假基准」）：
   - 桂林 `g=[275.5*2*2, 336*3, 650, 200*2, 240]` → `sum=3400`、人均 `1700`、人均分项 `[551,504,325,200,120]`；三档 `[1336,1700,2336]`。
@@ -312,9 +312,12 @@
 
 因此拆成两类文件：
 - **基准样例** → 只断言「正确值必须出现」(`FACTS`) +「bug 记录区必须还在」(`DOC_RECORD_SECTIONS`)。
-- **干净交付物**（`cardtest/guilin.html`、`travel-agent.md`）→ 才做「错值缺席 / 修复项在场 / 出现次数下限」(`CLEAN_FILES`)。
+- **干净交付物**（`cardtest/guilin.html`、`cardtest/guilin3d2n.html`、`travel-agent.md`）→ 才做「错值缺席 / 修复项在场 / 出现次数下限」(`CLEAN_FILES`)。
 
 ⚠️ 特别注意：`travel-agent.md:30` 含「¥168/人」是**故意的反例说明**（「曾把『¥168/人』和『¥336/间』混用，导致整张卡金额错一倍」），提示词的缺席清单绝不能放这条，否则又是假阳性。
+
+**2026-11-04 补的覆盖缺口（PASS 50 → 65）**：3 天 2 夜卡 `guilin3d2n.html` 是最新、最复杂的一张卡（回填了免登录 SSR 真实房价、修过 flex 两栏空白、显式写「不写已计入」防返程漏算），却一直没进 `CLEAN_FILES`——它改坏了脚本一个都查不出来。现补 15 条断言，覆盖 `3 DAYS 2 NIGHTS`、`1,381`/`2,762`/`1,102` 三处同步、`¥551` 出现 ≥4 次、`不写「已计入」`、`align-items:flex-start`、免登录 SSR / 气候常态 / 空调标注。
+**断言本身也做了反向验证**：故意把 kicker 改成 `3 DAYS 3 NIGHTS` → 脚本报 `FAIL 2 / exit 1`；还原 → `exit 0`。只加断言不验证它能不能抓到 bug，等于没加。
 
 ### 5.5 命令与退出码
 ```bash
@@ -325,7 +328,7 @@ PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --report    # 落盘 report.md
 PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --emit-prompt  # 打印复现指令
 ```
 退出码 **0 = 全绿 / 1 = 有 FAIL**。`PYTHONIOENCODING=utf-8` 必须带（Windows 控制台默认 GBK，报告里的 ✅/❌ 会触发 `UnicodeEncodeError: 'gbk' codec can't encode character '\u274c'`）；脚本 `main()` 里也做了 `sys.stdout.reconfigure(encoding="utf-8")` 兜底。
-最近一次结果：**PASS 50 / FAIL 0 / INFO 2**。
+最近一次结果：**PASS 65 / FAIL 0 / INFO 2**。
 
 ### 5.6 判定标准（4 类，措辞不算退化，硬事实和口径算）
 | 类 | 要求 |

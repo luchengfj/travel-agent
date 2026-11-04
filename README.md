@@ -1,5 +1,7 @@
 # 行旅 · Travel Agent
 
+> **仓库地址**：https://github.com/luchengfj/travel-agent （public，分支 `main`）
+
 一个「用真实翻车事故喂大」的中文旅行规划 Agent 提示词工程。它不是一段提示词，
 而是一套 **提示词 + 图卡渲染器 + 实时取数脚本 + 回归基准** 的小型软件系统。
 
@@ -27,7 +29,7 @@
 │   ├── hangzhou-example.md      # deal / prep / ontrip / review 四模式
 │   ├── team-example.md          # 多角色冲突裁决
 │   ├── bangkok-example.md       # 境外变体（签证 / 汇率 / 时差 / 现金门槛）
-│   ├── regress.py               # 一次性静态自检脚本（PASS 50 / FAIL 0）
+│   ├── regress.py               # 一次性静态自检脚本（PASS 65 / FAIL 0）
 │   └── report.md                # 最近一次回归报告
 ├── hangzhou-5d-budget.md        # 杭州 5 天预算原始底稿
 ├── guilin-card.png              # 桂林 4 天 3 晚卡
@@ -81,9 +83,15 @@ cd C:/ai/cardtest
 基准样例文件的职责就是**记录** bug，对基准全文做「错值必须缺席」在原理上不成立
 （首跑 7 个假 FAIL 里 5 个由此而来）。因此：
 - 基准样例 → 只断言「正确值必须出现」+「bug 记录区还在」；
-- 干净交付物（`cardtest/guilin.html`、`travel-agent.md`）→ 才做「错值缺席 / 修复项在场」。
+- 干净交付物（`cardtest/guilin.html`、`cardtest/guilin3d2n.html`、`travel-agent.md`）→ 才做「错值缺席 / 修复项在场」。
 
 注意 `travel-agent.md:30` 的 `¥168/人` 是**故意的反例说明**，缺席清单绝不能含它。
+
+**2026-11-04 补的覆盖缺口**：3 天 2 夜卡此前完全不在 `CLEAN_FILES` 里——它最新、
+最复杂，且刚修过 flex 空白、返程漏算、天数写错三类问题，改坏了脚本一个都查不出来。
+现已纳入 15 条断言（kicker 天数、三处同步、`不写「已计入」`、`align-items:flex-start`、
+免登录 SSR 与气候常态标注等），并用「故意注入 `3 DAYS 3 NIGHTS` → 必须 FAIL 2 / exit 1 →
+还原 → exit 0」反向验证过断言真的有效。PASS 50 → 65。
 
 ---
 
