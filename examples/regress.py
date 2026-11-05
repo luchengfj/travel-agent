@@ -9,10 +9,11 @@ regress.py — 旅行 Agent 提示词 / 回归基准 的一次性自检脚本
     "$PY" examples/regress.py --report     # 同时落盘 report.md
     "$PY" examples/regress.py --emit-prompt # 打印「喂给 Agent 的复现指令」后退出
 
-它验三件事，缺一不可：
+它验四件事，缺一不可：
   [A] 结构 : travel-agent.md 的必需章节、硬规则关键词、7 张图卡规格都在
   [B] 数字 : 四份样例里的分项/合计/人均/换算，用 Python 重算一遍（基准自己也会算错）
   [C] 基准 : 四份样例的检查点、历史翻车点、已知 bug 记录仍在；并检测已修 bug 复发
+  [D] 自检 : 断言配置没被删空、干净交付物确实存在、每条防复发正则都认得自己的错值
 
 脚本只做「静态 + 算术」检查，不调用 LLM、不渲染图卡。
 逐轮喂给 Agent 的**行为对照**仍按 README.md「怎么跑一次回归」人工/半自动完成，
@@ -335,6 +336,35 @@ FACTS = {
 }
 
 
+# ── 防复发断言的「活体测试」(2026-11-05 补) ─────────────────────────────
+# CLEAN_FILES 的 absent 正则是「错值不得出现」的防线，但正则本身也可能写死：
+# 转义写错、字符类收得太窄、或者被人误删一条 —— 那样 bug 真复发时脚本照样全绿。
+# 这里给每条 absent 配一个「真实错值样例」，check_self() 用 has() 验证正则能命中它，
+# 即：断言确实认得自己要防的那个错。纯内存构造，不碰真实文件。
+# 格式：rel -> [(absent 正则, 能命中该正则的错值样例), ...]
+SELFTEST = {
+    "cardtest/guilin.html": [
+        (r"3 DAYS 3 NIGHTS", "GUILIN · 3 DAYS 3 NIGHTS"),
+        (r"¥168/人|168/人", "住宿按 ¥168/人 计"),
+        (r"门票.*(260|255)", "均衡档门票 260 元"),
+        (r"费用已计入交通", "D4 返程费用已计入交通"),
+        (r"77[.]37", "14 家均值 ¥77.37"),
+    ],
+    "cardtest/guilin3d2n.html": [
+        (r"3 DAYS 3 NIGHTS", "YANGSHUO · 3 DAYS 3 NIGHTS"),
+        (r"费用已计入交通", "返程费用已计入交通"),
+        (r"align-items:stretch", ".two{display:flex;align-items:stretch}"),
+    ],
+    "travel-agent.md": [
+        (r"3 DAYS 3 NIGHTS", "kicker 写 3 DAYS 3 NIGHTS"),
+        (r"77[.]37", "deal 均值 77.37"),
+        (r"4,520|4520", "省钱档 4520"),
+        (r"9,205|9205", "深度档 9205"),
+        (r"¥2,950|2950", "处置后人均 ¥2,950"),
+    ],
+}
+
+
 def checkpoint_counts(text):
     # 返回 (checkbox 条数, 「## 回归检查点」小节内编号条数)。
     # 不用正则里的反斜杠，纯按行判断，避免 Windows/转义歧义。
@@ -350,6 +380,41 @@ def checkpoint_counts(text):
             if _re.match(r"^[0-9]+[.] ", l):
                 num += 1
     return cb, num
+
+
+def check_self():
+    # [D] 配置规模：四个基准字典被删空 / 删条目 = 覆盖静默缩水，判退化
+    check(len(EXPECTED) == 4, "自检·配置", "EXPECTED 4 份基准齐全",
+          "EXPECTED 只剩 %d 份" % len(EXPECTED))
+    check(len(FACTS) == 4, "自检·配置", "FACTS 4 份齐全",
+          "FACTS 只剩 %d 份" % len(FACTS))
+    check(len(DOC_RECORD_SECTIONS) == 4, "自检·配置",
+          "DOC_RECORD_SECTIONS 4 份齐全",
+          "DOC_RECORD_SECTIONS 只剩 %d 份" % len(DOC_RECORD_SECTIONS))
+    check(len(CLEAN_FILES) == 3, "自检·配置", "CLEAN_FILES 3 个交付物齐全",
+          "CLEAN_FILES 只剩 %d 个" % len(CLEAN_FILES))
+
+    # 每个干净交付物：文件真实存在，且确实配了断言（别出现「加了文件忘了配」）
+    for rel, spec in CLEAN_FILES.items():
+        t = read(ROOT / rel)
+        n_assert = len(spec["absent"]) + len(spec["present"]) + len(spec["min_count"])
+        check(t is not None and n_assert > 0,
+              "自检·" + spec["label"],
+              "文件存在，配了 %d 条断言" % n_assert,
+              "文件缺失或断言被清空（%d 条）" % n_assert)
+
+    # 每条 absent 断言都必须有活体样例，且样例能被 has() 命中
+    for rel, spec in CLEAN_FILES.items():
+        fixtures = dict(SELFTEST.get(rel, []))
+        absent_pats = [p for p, _ in spec["absent"]]
+        uncovered = [p for p in absent_pats if p not in fixtures]
+        check(not uncovered, "自检·" + spec["label"] + "·fixture",
+              "%d 条防复发断言都有活体样例" % len(absent_pats),
+              "这些断言没有活体样例：%s" % uncovered)
+        for pat, sample in SELFTEST.get(rel, []):
+            check(has(sample, pat), "自检·" + spec["label"] + "·活体",
+                  "断言活着：能认出「%s」" % pat,
+                  "断言失效：正则 `%s` 认不出自己的错值样例" % pat)
 
 
 def check_baselines():
@@ -450,7 +515,7 @@ def render():
     out.append("")
     out.append(f"- 生成时间：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     out.append(f"- 工作目录：`{ROOT}`")
-    out.append(f"- 检查对象：`travel-agent.md` + `examples/` 四份基准 + `README.md`")
+    out.append(f"- 检查对象：`travel-agent.md` + `examples/` 四份基准 + `README.md` + 断言自检")
     out.append("")
     n_fail = sum(1 for l, _, _ in RESULTS if l == "FAIL")
     n_pass = sum(1 for l, _, _ in RESULTS if l == "PASS")
@@ -513,6 +578,7 @@ def main():
     check_prompt()
     check_numbers()
     check_baselines()
+    check_self()
 
     report = render()
     print(report)
