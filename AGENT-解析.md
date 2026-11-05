@@ -277,7 +277,7 @@
 | `team-example.md` | 201 | 多角色冲突裁决 · 9 个检查点 |
 | `bangkok-example.md` | 286 | 境外变体（签证/汇率/时差/现金门槛）· 19 个检查点 |
 | `regress.py` | 775 | 一次性自检脚本（七块检查，详见第 5 节） |
-| `report.md` | 186 | 最近一次回归报告（PASS 157 / FAIL 0 / INFO 2） |
+| `report.md` | 190 | 最近一次回归报告（PASS 161 / FAIL 0 / INFO 2） |
 
 检查点合计 **63 条**（17+18+9+19）。
 
@@ -343,7 +343,7 @@ PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --report    # 落盘 report.md
 PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --emit-prompt  # 打印复现指令
 ```
 退出码 **0 = 全绿 / 1 = 有 FAIL**。`PYTHONIOENCODING=utf-8` 必须带（Windows 控制台默认 GBK，报告里的 ✅/❌ 会触发 `UnicodeEncodeError: 'gbk' codec can't encode character '\u274c'`）；脚本 `main()` 里也做了 `sys.stdout.reconfigure(encoding="utf-8")` 兜底。
-最近一次结果：**PASS 157 / FAIL 0 / INFO 2**。
+最近一次结果：**PASS 161 / FAIL 0 / INFO 2**。
 
 ### 5.6 判定标准（4 类，措辞不算退化，硬事实和口径算）
 | 类 | 要求 |

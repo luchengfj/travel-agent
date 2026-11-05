@@ -32,9 +32,10 @@
 │   ├── team-example.md          # 多角色冲突裁决
 │   ├── bangkok-example.md       # 境外变体（签证 / 汇率 / 时差 / 现金门槛）
 │   ├── facts.json               # 易过期事实台账（claim + verified_on + source_url）
-│   ├── regress.py               # 一次性静态自检脚本（PASS 157 / FAIL 0）
+│   ├── regress.py               # 一次性静态自检脚本（PASS 161 / FAIL 0）
 │   └── report.md                # 最近一次回归报告
 ├── hangzhou-5d-budget.md        # 杭州 5 天预算原始底稿
+├── perfect-trip-card.png        # 桂林阳朔 3 天 2 夜「完美攻略」成品卡
 ├── guilin-card.png              # 桂林 4 天 3 晚卡
 ├── guilin-3d2n-card.png         # 桂林 3 天 2 夜卡（回填了真实房价）
 ├── guilin-spend-card.png        # 消费记录卡（空白模板）

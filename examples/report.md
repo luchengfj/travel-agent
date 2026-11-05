@@ -1,10 +1,10 @@
 # 旅行 Agent 回归报告
 
-- 生成时间：2026-11-05 22:21:58
+- 生成时间：2026-11-06 00:12:41
 - 工作目录：`C:\ai`
 - 检查对象：`travel-agent.md` + `examples/` 四份基准 + `README.md` + 断言自检 + 事实台账 + 卡片静态健全 + 价格快照交叉
 
-**结论：✅ 全绿，未发现退化**（PASS 157 / FAIL 0 / INFO 2）
+**结论：✅ 全绿，未发现退化**（PASS 161 / FAIL 0 / INFO 2）
 
 | 状态 | 检查项 | 结果 |
 |---|---|---|
@@ -133,7 +133,7 @@
 | PASS | `台账·shenzhen-yangshuo-rail` | verified_on=2026-11-02 格式正确且不晚于今天 |
 | PASS | `台账·shenzhen-yangshuo-rail` | claim 在 1 个文件里都在 |
 | PASS | `台账·复核提醒` | 11 条事实都在复核期内 |
-| PASS | `卡片·清单` | 入库卡片 8 张（≥8） |
+| PASS | `卡片·清单` | 入库卡片 9 张（≥8） |
 | PASS | `卡片·deal.html·底座` | 基础色板齐全（2/2） |
 | PASS | `卡片·deal.html·底座` | 强调色 3/3（≥2） |
 | PASS | `卡片·deal.html·底座` | DOCTYPE 与 charset 声明齐备 |
@@ -155,6 +155,10 @@
 | PASS | `卡片·ontrip.html·底座` | 基础色板齐全（2/2） |
 | PASS | `卡片·ontrip.html·底座` | 强调色 3/3（≥2） |
 | PASS | `卡片·ontrip.html·底座` | DOCTYPE 与 charset 声明齐备 |
+| PASS | `卡片·perfect-trip.html·底座` | 基础色板齐全（2/2） |
+| PASS | `卡片·perfect-trip.html·底座` | 强调色 3/3（≥2） |
+| PASS | `卡片·perfect-trip.html·底座` | DOCTYPE 与 charset 声明齐备 |
+| PASS | `卡片·perfect-trip.html·kicker` | 1 处 kicker 都满足 DAYS = NIGHTS + 1 |
 | PASS | `卡片·prep.html·底座` | 基础色板齐全（2/2） |
 | PASS | `卡片·prep.html·底座` | 强调色 2/3（≥2） |
 | PASS | `卡片·prep.html·底座` | DOCTYPE 与 charset 声明齐备 |
