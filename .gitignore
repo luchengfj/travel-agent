@@ -4,10 +4,13 @@
 # 改这个文件后先跑一次 git status --short，确认没把无关文件放进来。
 *
 
-# 只放行本仓库需要的两个目录，不用 !*/ 广开放行——
+# 只放行本仓库需要的目录，不用 !*/ 广开放行——
 # 那会让 git 钻进 qq-bot/ 这类嵌套 .git 仓库并把它们暂存成 gitlink。
 !/cardtest/
 !/examples/
+!/.github/
+!/.github/workflows/
+!/.github/workflows/*.yml
 
 # ── 根目录放行 ──
 !/.gitignore

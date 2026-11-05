@@ -16,6 +16,7 @@
 .
 ├── travel-agent.md              # 主提示词（460 行 / 20 章节 / 21 条硬规则）
 ├── AGENT-解析.md                # 全解析：逐节拆解 + 翻车点地图 + 已知边界
+├── .github/workflows/regress.yml # CI 门禁：push / PR 自动跑静态回归
 ├── .gitignore
 ├── cardtest/                    # 图卡渲染 + 实时取数
 │   ├── shot.py                  # HTML+CSS → 无头 Edge 截全页 → Pillow 自动裁白边
@@ -53,6 +54,16 @@ PY="C:/Users/cheng/.dsh/dsh-runtimes/dsh-next-primary-runtime/dependencies/pytho
 PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --report
 ```
 退出码 `0` = 全绿 / `1` = 有 FAIL。Windows 必须带 `PYTHONIOENCODING=utf-8`（GBK 编不了报告里的 ✅/❌）。
+
+### 2b. CI 自动门禁（.github/workflows/regress.yml）
+`regress.py` 纯标准库、零依赖、不联网、不调 LLM、不渲染，所以直接搬进了 GitHub Actions：
+- `on: push(main) / pull_request` → `actions/setup-python@3.11` → `python examples/regress.py`（退出码即门禁）；
+- `if: always()` 再跑一次 `--report`，把 `examples/report.md` 存成 artifact，失败也能看到是哪条断言红了；
+- workflow 本身只用 `contents: read`，无 secret、无写权限。
+
+它把「改完提示词记得跑一条」从**人记得**变成**仓库强制**，也把刚加的 [D] 断言自检放到了每次 push 上——
+谁误删了一条防复发正则，CI 立刻红。注意边界不变：**静态全绿 ≠ 行为没退化**（见下节），
+逐轮行为对照、图卡像素级目检、实时数据现查仍需人工；脚本刻意不联网，避免外部数据源抖动把 CI 变红。
 
 ### 3. 渲一张卡
 ```bash
@@ -100,6 +111,11 @@ cd C:/ai/cardtest
 断言都有活体样例 ④`has(sample, pat)` 真能命中。反向验证：把 `3 DAYS 3 NIGHTS` 的正则改成
 `3 DAYS [Z]3 NIGHTS` → 自检准确报「断言失效：正则认不出自己的错值样例」、exit 1；字节级还原
 → exit 0。**PASS 65 → 88**（新增 23 条）。
+
+**2026-11-05 加 CI 门禁**：上面这套自检再好用，也只在本地、只在人记得跑的时候生效。
+新增 `.github/workflows/regress.yml`，push / PR 自动跑 `regress.py` 当门禁并上传报告 artifact。
+因 `.gitignore` 是白名单模式（`*` 忽略一切），同步放行了 `/.github/workflows/*.yml`，
+且确认没把 `qq-bot/` 等无关目录顺带放进来。
 
 ---
 
