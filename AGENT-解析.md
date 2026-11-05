@@ -263,7 +263,7 @@
 | `hangzhou-5d-budget.md` | 7.7KB | 杭州 5 天预算原始底稿 |
 
 ### 4.2 图卡渲染 `cardtest/`
-- 渲染器：`shot.py`（38 行）、`hotel_price.py`（120 行，SSR 抓取）。
+- 渲染器：`shot.py`（38 行）、`hotel_price.py`（125 行，SSR 抓取，写盘带 `fetched_at`）。
 - 8 个 HTML：`hangzhou.html` / `deal.html` / `prep.html` / `ontrip.html` / `review.html`（杭州五卡）、`guilin.html`（4 天 3 晚）、`guilin3d2n.html`（3 天 2 夜）、`guilin-spend.html`（消费模板）、`t.html`（早期测试）。
 - 对应 PNG 9 张；根目录交付版 9 张：`hangzhou-card.png` / `hangzhou-deal-card.png` / `hangzhou-prep-card.png` / `hangzhou-ontrip-card.png` / `hangzhou-review-card.png` / `guilin-card.png` / `guilin-3d2n-card.png` / `guilin-spend-card.png`。
 - 价格 JSON 3 份：`guilin-prices-20261201.json`、`yangshuo-prices-20261201.json`、`yangshuo-weststreet-prices-20261201.json`。
@@ -276,8 +276,8 @@
 | `hangzhou-example.md` | 215 | deal / prep / ontrip / review 四模式 · 18 个检查点 |
 | `team-example.md` | 201 | 多角色冲突裁决 · 9 个检查点 |
 | `bangkok-example.md` | 286 | 境外变体（签证/汇率/时差/现金门槛）· 19 个检查点 |
-| `regress.py` | 596 | 一次性自检脚本（详见第 5 节） |
-| `report.md` | 118 | 最近一次回归报告（PASS 88 / FAIL 0 / INFO 2） |
+| `regress.py` | 775 | 一次性自检脚本（七块检查，详见第 5 节） |
+| `report.md` | 186 | 最近一次回归报告（PASS 157 / FAIL 0 / INFO 2） |
 
 检查点合计 **63 条**（17+18+9+19）。
 
@@ -298,7 +298,7 @@
 | 多角色 | 贴「三个角色的原始交付」整段 | 埋 5 个坑：住宿单位、合计 3420 与分项 3400 差 20、规划员越权估竹筏 ¥75、D3 排不下刘三姐；**餐饮 650 是合理估算属干扰项，不该判错** |
 | 曼谷 | 「12 月中去曼谷玩几天，从深圳走，两个人，预算你看着办」→「12/17-12/20 行，护照没问题，人均 3000 含机票」 | 境外四件事、TDAC 72 小时窗、20 泰铢「谁有资格」、门槛值≠消费值、汇率取整口径 |
 
-### 5.3 `regress.py` 四块检查（596 行）
+### 5.3 `regress.py` 七块检查（775 行）
 - **[A] 提示词结构**：20 个必需一级章节按内容匹配（不按行号，行号会漂移）、7 张图卡规格小节、**21 条硬规则关键词**（每条对应真实翻车点）、出境卡 5 个附加块。
 - **[B] 数字重算**（用 Python 把基准自己也算一遍，防「假基准」）：
   - 桂林 `g=[275.5*2*2, 336*3, 650, 200*2, 240]` → `sum=3400`、人均 `1700`、人均分项 `[551,504,325,200,120]`；三档 `[1336,1700,2336]`。
@@ -321,6 +321,15 @@
 **断言本身也做了反向验证**：故意把 kicker 改成 `3 DAYS 3 NIGHTS` → 脚本报 `FAIL 2 / exit 1`；还原 → `exit 0`。只加断言不验证它能不能抓到 bug，等于没加。
 
 **2026-11-05 再补一层（PASS 65 → 88）**：[D] 检查的是「断言还活着吗」，不是「文件对不对」。
+
+**2026-11-05 再补第三层（PASS 88 → 157）**：CI 让自检每次 push 都跑，但覆盖不到的地方照样会烂。
+- **[E] 事实台账**：`examples/facts.json` 登记 11 条易过期事实，各带 `verified_on`/`source_url`/复核周期；
+  `check_facts()` 逐条核对 claim 仍在声明的文件里，过期只报 INFO 不把 CI 变红。
+- **[F] 卡片静态健全**：`check_cards()` 覆盖全部 8 张入库卡（此前 `CLEAN_FILES` 只盯 3 个文件），
+  断言基础色板 / 强调色 ≥2 / DOCTYPE / charset，并抽通用规则 `DAYS = NIGHTS + 1`。
+- **[G] 价格快照交叉**：`check_snapshots()` 要求价格 JSON 有 `fetched_at`、rows 可解析；
+  按快照统计值生成提示词里该出现的数字句子，两边对不上就 FAIL。`hotel_price.py` 写盘时同步写采集时间。
+三层共 69 条断言，三处故障注入各 exit 1 且准确命中、还原 exit 0。另新增 `AGENTS.md` 交接指引。
 反向验证：把 `SELFTEST` 里 `3 DAYS 3 NIGHTS` 的正则改成 `3 DAYS [Z]3 NIGHTS` → 自检准确报
 `这些断言没有活体样例：['3 DAYS 3 NIGHTS']` 与 `断言失效：正则 3 DAYS [Z]3 NIGHTS 认不出自己的错值样例`、
 exit 1；字节级还原 → exit 0。这样连「防复发断言被改坏」这种元退化也能被脚本抓到。
@@ -334,7 +343,7 @@ PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --report    # 落盘 report.md
 PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --emit-prompt  # 打印复现指令
 ```
 退出码 **0 = 全绿 / 1 = 有 FAIL**。`PYTHONIOENCODING=utf-8` 必须带（Windows 控制台默认 GBK，报告里的 ✅/❌ 会触发 `UnicodeEncodeError: 'gbk' codec can't encode character '\u274c'`）；脚本 `main()` 里也做了 `sys.stdout.reconfigure(encoding="utf-8")` 兜底。
-最近一次结果：**PASS 88 / FAIL 0 / INFO 2**。
+最近一次结果：**PASS 157 / FAIL 0 / INFO 2**。
 
 ### 5.6 判定标准（4 类，措辞不算退化，硬事实和口径算）
 | 类 | 要求 |

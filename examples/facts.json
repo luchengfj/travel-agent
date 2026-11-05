@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "note": "易过期事实台账。regress.py 的 [E] 检查会读取本文件：逐条核对 claim 是否仍出现在指定文件里，并检查 verified_on 不缺失、不晚于今天。查不到就如实标注，绝不自动改写提示词。",
+  "facts": [
+    {
+      "id": "hotline-12345",
+      "claim": "2021 年底并入 12345",
+      "about": "12301 全国旅游服务热线 / 12318 文化市场举报已于 2021 年底并入 12345",
+      "source_url": "https://www.gov.cn/",
+      "verified_on": "2026-11-02",
+      "in": ["travel-agent.md"],
+      "review_every_days": 365
+    },
+    {
+      "id": "thai-visa-free",
+      "claim": "中泰互免签证协定 2024-03-01 生效",
+      "about": "普通护照免签入境单次 ≤30 日、每 180 日累计 ≤90 日",
+      "source_url": "https://www.mfa.gov.cn/wjbzwfwpt/kzx/tzgg/202401/t20240129_11234802.html",
+      "verified_on": "2026-11-03",
+      "in": ["travel-agent.md"],
+      "review_every_days": 365
+    },
+    {
+      "id": "thai-stay-cap",
+      "claim": "180 日累计 ≤90 日",
+      "about": "免签停留上限，必须和生效日一起写，不能只写「免签」",
+      "source_url": "https://www.mfa.gov.cn/wjbzwfwpt/kzx/tzgg/202401/t20240129_11234802.html",
+      "verified_on": "2026-11-03",
+      "in": ["travel-agent.md"],
+      "review_every_days": 365
+    },
+    {
+      "id": "tdac-window",
+      "claim": "TDAC 只能入境前 72 小时内填",
+      "about": "泰国电子入境卡 2025-05-01 起强制，官网 tdac.immigration.go.th 免费，填早了失效",
+      "source_url": "https://tdac.immigration.go.th/",
+      "verified_on": "2026-11-03",
+      "in": ["travel-agent.md"],
+      "review_every_days": 180
+    },
+    {
+      "id": "thai-cash-threshold",
+      "claim": "20,000 THB",
+      "about": "免签入境现金抽查门槛（每人），只认现金、不认卡和截图；是财力证明不是建议消费额",
+      "source_url": "https://www.tattpe.org.tw/",
+      "verified_on": "2026-11-03",
+      "in": ["examples/bangkok-example.md"],
+      "review_every_days": 365
+    },
+    {
+      "id": "cny-thb-rate",
+      "claim": "5.078",
+      "about": "1 CNY = 5.078 THB，ECB 参考价 2026-11-02；不带采集日期的汇率是定时炸弹",
+      "source_url": "https://frankfurter.app/",
+      "verified_on": "2026-11-03",
+      "in": ["examples/bangkok-example.md"],
+      "review_every_days": 30
+    },
+    {
+      "id": "bangkok-mrt-emv",
+      "claim": "2026-06-01",
+      "about": "曼谷 MRT 蓝/紫线停用储值卡与代币，只收 EMV 感应银行卡；游客改用 BTS Rabbit 卡",
+      "source_url": "https://www.nationthailand.com/",
+      "verified_on": "2026-11-03",
+      "in": ["examples/bangkok-example.md"],
+      "review_every_days": 180
+    },
+    {
+      "id": "tripcom-city-yangshuo",
+      "claim": "871=阳朔",
+      "about": "阳朔在携程体系里是独立 city=871，不是「桂林下的县所以取不到」；872 是新昌",
+      "source_url": "https://www.trip.com/hotels/list?city=871",
+      "verified_on": "2026-11-04",
+      "in": ["travel-agent.md", "cardtest/hotel_price.py"],
+      "review_every_days": 365
+    },
+    {
+      "id": "tripcom-zone-weststreet",
+      "claim": "zone 4532",
+      "about": "阳朔西街/阳朔公园商业区商圈 id，从 m.ctrip.com/webapp/hotel/yangshuo871/zone4532 取，别凭猜",
+      "source_url": "https://m.ctrip.com/webapp/hotel/yangshuo871/zone4532",
+      "verified_on": "2026-11-04",
+      "in": ["travel-agent.md", "cardtest/hotel_price.py"],
+      "review_every_days": 365
+    },
+    {
+      "id": "yangshuo-weststreet-price",
+      "claim": "中位 ¥171",
+      "about": "西街 12 家每晚 ¥80–479、中位 ¥171、9 家 ≤¥300（12/1–12/3 快照，非可下单承诺价）",
+      "source_url": "https://www.trip.com/hotels/list?city=871&zone=4532",
+      "verified_on": "2026-11-04",
+      "in": ["travel-agent.md"],
+      "review_every_days": 30
+    },
+    {
+      "id": "shenzhen-yangshuo-rail",
+      "claim": "275.5",
+      "about": "深圳北→阳朔高铁二等座 ¥275.5/人，往返 2 人 = ¥1102",
+      "source_url": "https://www.gaotie.com.cn/",
+      "verified_on": "2026-11-02",
+      "in": ["examples/guilin-example.md"],
+      "review_every_days": 90
+    }
+  ]
+}

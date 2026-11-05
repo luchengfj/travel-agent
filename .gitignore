@@ -15,6 +15,7 @@
 # ── 根目录放行 ──
 !/.gitignore
 !/README.md
+!/AGENTS.md
 !/travel-agent.md
 !/AGENT-解析.md
 !/hangzhou-5d-budget.md
@@ -29,6 +30,7 @@
 # ── examples/ 放行 ──
 !/examples/*.md
 !/examples/*.py
+!/examples/*.json
 
 # ── 临时产物 / 缓存：即便名字匹配也要排除（必须放在放行之后才生效）──
 __pycache__/

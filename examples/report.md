@@ -1,10 +1,10 @@
 # 旅行 Agent 回归报告
 
-- 生成时间：2026-11-05 20:29:52
+- 生成时间：2026-11-05 22:21:58
 - 工作目录：`C:\ai`
-- 检查对象：`travel-agent.md` + `examples/` 四份基准 + `README.md` + 断言自检
+- 检查对象：`travel-agent.md` + `examples/` 四份基准 + `README.md` + 断言自检 + 事实台账 + 卡片静态健全 + 价格快照交叉
 
-**结论：✅ 全绿，未发现退化**（PASS 88 / FAIL 0 / INFO 2）
+**结论：✅ 全绿，未发现退化**（PASS 157 / FAIL 0 / INFO 2）
 
 | 状态 | 检查项 | 结果 |
 |---|---|---|
@@ -98,10 +98,79 @@
 | PASS | `自检·提示词本身（不含基准记录区；¥168/人 是反例说明，不列入缺席检查）·活体` | 断言活着：能认出「4,520|4520」 |
 | PASS | `自检·提示词本身（不含基准记录区；¥168/人 是反例说明，不列入缺席检查）·活体` | 断言活着：能认出「9,205|9205」 |
 | PASS | `自检·提示词本身（不含基准记录区；¥168/人 是反例说明，不列入缺席检查）·活体` | 断言活着：能认出「¥2,950|2950」 |
+| PASS | `台账·facts.json` | schema=1 可识别 |
+| PASS | `台账·hotline-12345` | 字段齐全（claim / source_url / verified_on / in / review_every_days） |
+| PASS | `台账·hotline-12345` | verified_on=2026-11-02 格式正确且不晚于今天 |
+| PASS | `台账·hotline-12345` | claim 在 1 个文件里都在 |
+| PASS | `台账·thai-visa-free` | 字段齐全（claim / source_url / verified_on / in / review_every_days） |
+| PASS | `台账·thai-visa-free` | verified_on=2026-11-03 格式正确且不晚于今天 |
+| PASS | `台账·thai-visa-free` | claim 在 1 个文件里都在 |
+| PASS | `台账·thai-stay-cap` | 字段齐全（claim / source_url / verified_on / in / review_every_days） |
+| PASS | `台账·thai-stay-cap` | verified_on=2026-11-03 格式正确且不晚于今天 |
+| PASS | `台账·thai-stay-cap` | claim 在 1 个文件里都在 |
+| PASS | `台账·tdac-window` | 字段齐全（claim / source_url / verified_on / in / review_every_days） |
+| PASS | `台账·tdac-window` | verified_on=2026-11-03 格式正确且不晚于今天 |
+| PASS | `台账·tdac-window` | claim 在 1 个文件里都在 |
+| PASS | `台账·thai-cash-threshold` | 字段齐全（claim / source_url / verified_on / in / review_every_days） |
+| PASS | `台账·thai-cash-threshold` | verified_on=2026-11-03 格式正确且不晚于今天 |
+| PASS | `台账·thai-cash-threshold` | claim 在 1 个文件里都在 |
+| PASS | `台账·cny-thb-rate` | 字段齐全（claim / source_url / verified_on / in / review_every_days） |
+| PASS | `台账·cny-thb-rate` | verified_on=2026-11-03 格式正确且不晚于今天 |
+| PASS | `台账·cny-thb-rate` | claim 在 1 个文件里都在 |
+| PASS | `台账·bangkok-mrt-emv` | 字段齐全（claim / source_url / verified_on / in / review_every_days） |
+| PASS | `台账·bangkok-mrt-emv` | verified_on=2026-11-03 格式正确且不晚于今天 |
+| PASS | `台账·bangkok-mrt-emv` | claim 在 1 个文件里都在 |
+| PASS | `台账·tripcom-city-yangshuo` | 字段齐全（claim / source_url / verified_on / in / review_every_days） |
+| PASS | `台账·tripcom-city-yangshuo` | verified_on=2026-11-04 格式正确且不晚于今天 |
+| PASS | `台账·tripcom-city-yangshuo` | claim 在 2 个文件里都在 |
+| PASS | `台账·tripcom-zone-weststreet` | 字段齐全（claim / source_url / verified_on / in / review_every_days） |
+| PASS | `台账·tripcom-zone-weststreet` | verified_on=2026-11-04 格式正确且不晚于今天 |
+| PASS | `台账·tripcom-zone-weststreet` | claim 在 2 个文件里都在 |
+| PASS | `台账·yangshuo-weststreet-price` | 字段齐全（claim / source_url / verified_on / in / review_every_days） |
+| PASS | `台账·yangshuo-weststreet-price` | verified_on=2026-11-04 格式正确且不晚于今天 |
+| PASS | `台账·yangshuo-weststreet-price` | claim 在 1 个文件里都在 |
+| PASS | `台账·shenzhen-yangshuo-rail` | 字段齐全（claim / source_url / verified_on / in / review_every_days） |
+| PASS | `台账·shenzhen-yangshuo-rail` | verified_on=2026-11-02 格式正确且不晚于今天 |
+| PASS | `台账·shenzhen-yangshuo-rail` | claim 在 1 个文件里都在 |
+| PASS | `台账·复核提醒` | 11 条事实都在复核期内 |
+| PASS | `卡片·清单` | 入库卡片 8 张（≥8） |
+| PASS | `卡片·deal.html·底座` | 基础色板齐全（2/2） |
+| PASS | `卡片·deal.html·底座` | 强调色 3/3（≥2） |
+| PASS | `卡片·deal.html·底座` | DOCTYPE 与 charset 声明齐备 |
+| PASS | `卡片·guilin-spend.html·底座` | 基础色板齐全（2/2） |
+| PASS | `卡片·guilin-spend.html·底座` | 强调色 3/3（≥2） |
+| PASS | `卡片·guilin-spend.html·底座` | DOCTYPE 与 charset 声明齐备 |
+| PASS | `卡片·guilin.html·底座` | 基础色板齐全（2/2） |
+| PASS | `卡片·guilin.html·底座` | 强调色 3/3（≥2） |
+| PASS | `卡片·guilin.html·底座` | DOCTYPE 与 charset 声明齐备 |
+| PASS | `卡片·guilin.html·kicker` | 1 处 kicker 都满足 DAYS = NIGHTS + 1 |
+| PASS | `卡片·guilin3d2n.html·底座` | 基础色板齐全（2/2） |
+| PASS | `卡片·guilin3d2n.html·底座` | 强调色 3/3（≥2） |
+| PASS | `卡片·guilin3d2n.html·底座` | DOCTYPE 与 charset 声明齐备 |
+| PASS | `卡片·guilin3d2n.html·kicker` | 2 处 kicker 都满足 DAYS = NIGHTS + 1 |
+| PASS | `卡片·hangzhou.html·底座` | 基础色板齐全（2/2） |
+| PASS | `卡片·hangzhou.html·底座` | 强调色 3/3（≥2） |
+| PASS | `卡片·hangzhou.html·底座` | DOCTYPE 与 charset 声明齐备 |
+| PASS | `卡片·hangzhou.html·kicker` | 1 处 kicker 都满足 DAYS = NIGHTS + 1 |
+| PASS | `卡片·ontrip.html·底座` | 基础色板齐全（2/2） |
+| PASS | `卡片·ontrip.html·底座` | 强调色 3/3（≥2） |
+| PASS | `卡片·ontrip.html·底座` | DOCTYPE 与 charset 声明齐备 |
+| PASS | `卡片·prep.html·底座` | 基础色板齐全（2/2） |
+| PASS | `卡片·prep.html·底座` | 强调色 2/3（≥2） |
+| PASS | `卡片·prep.html·底座` | DOCTYPE 与 charset 声明齐备 |
+| PASS | `卡片·review.html·底座` | 基础色板齐全（2/2） |
+| PASS | `卡片·review.html·底座` | 强调色 2/3（≥2） |
+| PASS | `卡片·review.html·底座` | DOCTYPE 与 charset 声明齐备 |
+| PASS | `快照·桂林 12/1–12/3` | 字段齐全（source/city/dates/fetched_at/rows） |
+| PASS | `快照·桂林 12/1–12/3·采集时间` | 有采集时间：2026-11-04 |
+| PASS | `快照·桂林 12/1–12/3·交叉一致` | 提示词与快照一致：每晚 ¥110–952，中位 ¥332 |
+| PASS | `快照·阳朔西街 12/1–12/3` | 字段齐全（source/city/dates/fetched_at/rows） |
+| PASS | `快照·阳朔西街 12/1–12/3·采集时间` | 有采集时间：2026-11-04 |
+| PASS | `快照·阳朔西街 12/1–12/3·交叉一致` | 提示词与快照一致：每晚 ¥80–479、中位 ¥171，9 家 ≤¥300 |
 
 ## 脚本没覆盖的部分（仍需人工/半自动）
 
-本脚本只做**静态结构 + 算术重算 + 基准完整性**检查。下面四项必须按 `examples/README.md`「怎么跑一次回归」实际喂给 Agent 对照：
+本脚本只做**静态结构 + 算术重算 + 基准完整性 + 断言自检 + 事实台账 + 卡片静态健全 + 价格快照交叉**检查。下面四项必须按 `examples/README.md`「怎么跑一次回归」实际喂给 Agent 对照：
 
 1. 逐轮**行为输出**是否同构（首行模式标签、≤3 问带默认值、三档内容不同…）
 2. 图卡是否真的渲染出来、尺寸是否正确、有视觉能力时是否逐字目检 kicker/页脚

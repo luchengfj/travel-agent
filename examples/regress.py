@@ -9,11 +9,14 @@ regress.py — 旅行 Agent 提示词 / 回归基准 的一次性自检脚本
     "$PY" examples/regress.py --report     # 同时落盘 report.md
     "$PY" examples/regress.py --emit-prompt # 打印「喂给 Agent 的复现指令」后退出
 
-它验四件事，缺一不可：
+它验七件事，缺一不可：
   [A] 结构 : travel-agent.md 的必需章节、硬规则关键词、7 张图卡规格都在
   [B] 数字 : 四份样例里的分项/合计/人均/换算，用 Python 重算一遍（基准自己也会算错）
   [C] 基准 : 四份样例的检查点、历史翻车点、已知 bug 记录仍在；并检测已修 bug 复发
   [D] 自检 : 断言配置没被删空、干净交付物确实存在、每条防复发正则都认得自己的错值
+  [E] 事实 : 易过期事实台账 facts.json 每条 claim 仍在声明的文件里，且 verified_on / source_url 齐全、未过期
+  [F] 卡片 : 全部入库 HTML 卡的基础色板、DOCTYPE、编码、品牌名、kicker 天数关系（DAYS = NIGHTS + 1）
+  [G] 快照 : 价格 JSON 有采集时间、rows 可解析，且统计值与提示词里的声明一致
 
 脚本只做「静态 + 算术」检查，不调用 LLM、不渲染图卡。
 逐轮喂给 Agent 的**行为对照**仍按 README.md「怎么跑一次回归」人工/半自动完成，
@@ -23,6 +26,7 @@ regress.py — 旅行 Agent 提示词 / 回归基准 的一次性自检脚本
 """
 
 import re
+import json
 import sys
 import datetime
 from pathlib import Path
@@ -477,6 +481,176 @@ def check_baselines():
 
 
 # ==========================================================================
+# [E] 易过期事实台账
+# ==========================================================================
+# 设计理由：提示词反复强调「不带日期的汇率是定时炸弹」「政策要写生效日」，
+# 但这些易过期事实本身散在提示词和样例里，没有一处登记「上次核实于哪天 / 出处在哪」。
+# facts.json 就是那处登记。[E] 不判断事实真伪（那要联网），只保证：
+#   ① 台账自身字段齐全、claim 能在声明的文件里找到（事实被删却没更新台账 = 真退化）
+#   ② 过了复核期就列 INFO 提醒，但不因此把 CI 变红（时间流逝 ≠ 代码退化）
+FACTS_FILE = EX / "facts.json"
+
+# [F] 卡片静态健全。只断言「所有卡共有的底座」，不按卡型硬套内容：
+# 品牌名「行旅」并非每张卡都有，de­al/prep/ontrip/review 也没有 DAYS kicker。
+CARD_MIN = 8
+CARD_BASE_COLORS = ["#FBF8F2", "#1E3A34"]
+CARD_ACCENT_COLORS = ["#C8553D", "#C89B3C", "#5B7C99"]
+
+# [G] 价格快照。提示词里写了「每晚 ¥110–952，中位 ¥332」这类实测数字，
+# 快照 JSON 是这些数字的唯一真值源。这里用快照统计值**生成**该出现的句子，
+# 再去提示词里找：两边任一被改而另一边没跟上，就会 FAIL。
+SNAPSHOT_CLAIMS = [
+    {
+        "file": "cardtest/guilin-prices-20261201.json",
+        "label": "桂林 12/1–12/3",
+        "tpl": "每晚 ¥{min:.0f}–{max:.0f}，中位 ¥{med:.0f}",
+    },
+    {
+        "file": "cardtest/yangshuo-weststreet-prices-20261201.json",
+        "label": "阳朔西街 12/1–12/3",
+        "tpl": "每晚 ¥{min:.0f}–{max:.0f}、中位 ¥{med:.0f}，{le300} 家 ≤¥300",
+    },
+]
+
+
+def _snapshot_stats(path):
+    d = json.loads(path.read_text(encoding="utf-8"))
+    rows = d.get("rows")
+    if not isinstance(rows, list) or not rows:
+        return None, "rows 不是非空列表"
+    vals = [r["per_night_num"] for r in rows
+            if isinstance(r, dict) and isinstance(r.get("per_night_num"), (int, float))]
+    if not vals:
+        return None, "rows 里没有可用的 per_night_num"
+    import statistics
+    return {
+        "raw": d,
+        "min": min(vals), "max": max(vals),
+        "med": round(statistics.median(vals)),
+        "le300": sum(1 for v in vals if v <= 300),
+        "n": len(vals),
+    }, None
+
+
+def check_facts():
+    if not FACTS_FILE.exists():
+        check(False, "台账·facts.json", "", "facts.json 不存在")
+        return
+    try:
+        d = json.loads(FACTS_FILE.read_text(encoding="utf-8"))
+    except Exception as e:
+        check(False, "台账·facts.json", "", "JSON 解析失败：%s" % e)
+        return
+    check(d.get("schema") == 1, "台账·facts.json",
+          "schema=1 可识别", "schema 缺失或版本不认得：%r" % d.get("schema"))
+    items = d.get("facts")
+    if not isinstance(items, list) or not items:
+        check(False, "台账·facts.json", "", "facts 列表为空")
+        return
+
+    cache = {}
+    def txt(rel):
+        if rel not in cache:
+            cache[rel] = read(ROOT / rel)
+        return cache[rel]
+
+    today = datetime.date.today()
+    stale = []
+    for f in items:
+        fid = f.get("id", "<无 id>")
+        claim, src, day = f.get("claim"), f.get("source_url"), f.get("verified_on")
+        places, every = f.get("in"), f.get("review_every_days")
+        fields_ok = all([claim, src, day, isinstance(places, list) and places,
+                         isinstance(every, int) and every > 0])
+        check(fields_ok, "台账·" + fid,
+              "字段齐全（claim / source_url / verified_on / in / review_every_days）",
+              "字段缺失：claim=%r source_url=%r verified_on=%r in=%r every=%r"
+              % (claim, src, day, places, every))
+        if not fields_ok:
+            continue
+        try:
+            vdate = datetime.date.fromisoformat(day)
+            date_ok = vdate <= today
+        except Exception:
+            date_ok = False
+            vdate = None
+        check(date_ok, "台账·" + fid,
+              "verified_on=%s 格式正确且不晚于今天" % day,
+              "verified_on 非法或来自未来：%r" % day)
+        missing = [p for p in places if txt(p) is None or claim not in txt(p)]
+        check(not missing, "台账·" + fid,
+              "claim 在 %d 个文件里都在" % len(places),
+              "claim 在这些文件里找不到（事实被删/改却没更新台账）：%s" % missing)
+        if vdate and (today - vdate).days > every:
+            stale.append("%s（核实于 %s，%d 天未复核）" % (fid, day, (today - vdate).days))
+    if stale:
+        info("台账·复核提醒", "以下事实已过复核期，请人工现查后更新 verified_on：" + "；".join(stale))
+    else:
+        check(True, "台账·复核提醒", "%d 条事实都在复核期内" % len(items), "")
+
+
+def check_cards():
+    card_dir = ROOT / "cardtest"
+    files = sorted(p for p in card_dir.glob("*.html")
+                   if not p.name.startswith("_") and p.name not in ("t.html", "spend-out.html"))
+    check(len(files) >= CARD_MIN, "卡片·清单",
+          "入库卡片 %d 张（≥%d）" % (len(files), CARD_MIN),
+          "卡片只剩 %d 张（应 ≥%d）" % (len(files), CARD_MIN))
+    for p in files:
+        t = read(p)
+        label = "卡片·" + p.name
+        if t is None:
+            check(False, label, "", "文件读不到")
+            continue
+        miss_base = [c for c in CARD_BASE_COLORS if c not in t]
+        check(not miss_base, label + "·底座",
+              "基础色板齐全（%d/%d）" % (len(CARD_BASE_COLORS), len(CARD_BASE_COLORS)),
+              "基础色缺失：%s" % miss_base)
+        n_acc = sum(1 for c in CARD_ACCENT_COLORS if c in t)
+        check(n_acc >= 2, label + "·底座",
+              "强调色 %d/3（≥2）" % n_acc,
+              "强调色只剩 %d/3（<2）" % n_acc)
+        check(bool(re.search(r"<!DOCTYPE|<html", t, re.I)) and "charset" in t.lower(),
+              label + "·底座", "DOCTYPE 与 charset 声明齐备",
+              "缺 DOCTYPE 或 charset 声明")
+        # kicker 天数关系：N 晚必然是 N+1 天。三张 plan 卡都带这个 kicker。
+        pairs = re.findall(r"([0-9]+) DAYS ([0-9]+) NIGHTS", t)
+        if pairs:
+            bad = [(d, n) for d, n in pairs if int(d) != int(n) + 1]
+            check(not bad, label + "·kicker",
+                  "%d 处 kicker 都满足 DAYS = NIGHTS + 1" % len(pairs),
+                  "天数/晚数对不上：%s" % bad)
+
+
+def check_snapshots():
+    prompt = read(PROMPT)
+    for c in SNAPSHOT_CLAIMS:
+        p = ROOT / c["file"]
+        label = "快照·" + c["label"]
+        if not p.exists():
+            check(False, label, "", "%s 不存在" % c["file"])
+            continue
+        st, err = _snapshot_stats(p)
+        if st is None:
+            check(False, label, "", err)
+            continue
+        d = st["raw"]
+        fields_ok = all(k in d for k in ("source", "city", "dates", "fetched_at", "rows"))
+        check(fields_ok, label,
+              "字段齐全（source/city/dates/fetched_at/rows）",
+              "缺字段：%s" % [k for k in ("source", "city", "dates", "fetched_at", "rows") if k not in d])
+        fa = d.get("fetched_at", "")
+        check(bool(fa) and re.match(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}", str(fa)) is not None,
+              label + "·采集时间",
+              "有采集时间：%s" % fa,
+              "缺 fetched_at 或格式不是 YYYY-MM-DD 开头：%r" % fa)
+        sentence = c["tpl"].format(**st)
+        check(prompt is not None and sentence in prompt, label + "·交叉一致",
+              "提示词与快照一致：%s" % sentence,
+              "提示词里找不到按快照生成的句子「%s」——两边数字对不上了" % sentence)
+
+
+# ==========================================================================
 # 复现输入（脚本不跑 LLM，只把「该喂什么」列清楚）
 # ==========================================================================
 REPRO = [
@@ -515,7 +689,8 @@ def render():
     out.append("")
     out.append(f"- 生成时间：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     out.append(f"- 工作目录：`{ROOT}`")
-    out.append(f"- 检查对象：`travel-agent.md` + `examples/` 四份基准 + `README.md` + 断言自检")
+    out.append(f"- 检查对象：`travel-agent.md` + `examples/` 四份基准 + `README.md` + 断言自检"
+               f" + 事实台账 + 卡片静态健全 + 价格快照交叉")
     out.append("")
     n_fail = sum(1 for l, _, _ in RESULTS if l == "FAIL")
     n_pass = sum(1 for l, _, _ in RESULTS if l == "PASS")
@@ -545,7 +720,8 @@ def render():
 
     out.append("## 脚本没覆盖的部分（仍需人工/半自动）")
     out.append("")
-    out.append("本脚本只做**静态结构 + 算术重算 + 基准完整性**检查。下面四项必须按 "
+    out.append("本脚本只做**静态结构 + 算术重算 + 基准完整性 + 断言自检 + 事实台账 + "
+               "卡片静态健全 + 价格快照交叉**检查。下面四项必须按 "
                "`examples/README.md`「怎么跑一次回归」实际喂给 Agent 对照：")
     out.append("")
     out.append("1. 逐轮**行为输出**是否同构（首行模式标签、≤3 问带默认值、三档内容不同…）")
@@ -579,6 +755,9 @@ def main():
     check_numbers()
     check_baselines()
     check_self()
+    check_facts()
+    check_cards()
+    check_snapshots()
 
     report = render()
     print(report)

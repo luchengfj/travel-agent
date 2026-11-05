@@ -30,6 +30,7 @@
   - priceExplanation 的「N 晚合计」含税费，故 每晚单价×N 通常不等于合计（正常，别当成算错）。
 """
 import argparse
+import datetime
 import json
 import re
 import statistics
@@ -106,10 +107,14 @@ def main():
         print("提醒      : 合计含税费，故 单价×晚数 ≠ 合计 属正常，不要当成加总错误。")
 
     if a.json:
+        # 采集时间是「下单前重新读一次」的前提：没有日期的快照会变成错误信息。
+        # 用 UTC ISO-8601，带时区，避免「本地几点」的歧义。
+        fetched_at = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
         pathlib.Path(a.json).write_text(
-            json.dumps(dict(source=url, city=city, dates=dates, rows=rows),
+            json.dumps(dict(source=url, city=city, dates=dates,
+                            fetched_at=fetched_at, rows=rows),
                        ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"已写出    : {a.json}")
+        print(f"已写出    : {a.json}  （采集时间 UTC {fetched_at}）")
 
 
 if __name__ == "__main__":
