@@ -21,6 +21,8 @@
 ├── .gitignore
 ├── cardtest/                    # 图卡渲染 + 实时取数
 │   ├── shot.py                  # HTML+CSS → 无头 Edge 截全页 → Pillow 自动裁白边
+│   ├── ledger.py                # spend 记账内核（PLAN 唯一真值源 / compute / render_spend）
+│   ├── ledger-golden.json       # 记账内核的 golden 夹具
 │   ├── hotel_price.py           # 免登录 SSR 抓 trip.com 实时房价（支持 city / zone）
 │   ├── *.html                   # 各张卡片的排版源码
 │   ├── *.png                    # 渲染产物（2160px 宽 2 倍图）
@@ -32,7 +34,9 @@
 │   ├── team-example.md          # 多角色冲突裁决
 │   ├── bangkok-example.md       # 境外变体（签证 / 汇率 / 时差 / 现金门槛）
 │   ├── facts.json               # 易过期事实台账（claim + verified_on + source_url）
-│   ├── regress.py               # 一次性静态自检脚本（PASS 182 / FAIL 0）
+│   ├── cases.json               # 行为回放用例（不判分只留痕）
+│   ├── replay.py                # 行为回放操作卡：list / prompt / trace
+│   ├── regress.py               # 一次性静态自检脚本（PASS 209 / FAIL 0）
 │   └── report.md                # 最近一次回归报告
 ├── hangzhou-5d-budget.md        # 杭州 5 天预算原始底稿
 ├── perfect-trip-card.png        # 桂林阳朔 3 天 2 夜「完美攻略」成品卡
@@ -87,7 +91,7 @@ cd C:/ai/cardtest
 
 ## 能力边界（务必如实标注）
 
-- **静态全绿 ≠ 行为没退化**：`regress.py` 只做静态结构 + 算术重算 + 基准完整性 + 断言自检 + 事实台账 + 卡片静态健全 + 价格快照交叉 + 出境卡附加块，不调 LLM、不渲染、不查实时数据。逐轮行为、图卡目检、实时数据现查仍需人工对照。
+- **静态全绿 ≠ 行为没退化**：`regress.py` 只做静态结构 + 算术重算 + 基准完整性 + 断言自检 + 事实台账 + 卡片静态健全 + 价格快照交叉 + 出境卡附加块 + 记账内核 + 行为回放用例，不调 LLM、不渲染、不查实时数据。逐轮行为、图卡目检、实时数据现查仍需人工对照。
 - **房价只到城市 / 商圈粒度**：能拿「阳朔西街 12 家 ¥80–479 / 中位 ¥171」，不能定位具体某店的可下单价。SSR 是约 12 条/页的快照，**非可下单承诺价**，下单前必须重读。
 - **天气窗口外只能给气候常态**：工具实测只覆盖 7 天，更远的行程标「历史同期，非实时预报」并给复核提醒。
 - **图卡自检依赖模型视觉能力**：无视觉能力时走「尺寸 / 内容 / 溢出」三项结构化校验，并明说「未做像素级目检」。
@@ -98,7 +102,7 @@ cd C:/ai/cardtest
 基准样例文件的职责就是**记录** bug，对基准全文做「错值必须缺席」在原理上不成立
 （首跑 7 个假 FAIL 里 5 个由此而来）。因此：
 - 基准样例 → 只断言「正确值必须出现」+「bug 记录区还在」；
-- 干净交付物（`cardtest/guilin.html`、`cardtest/guilin3d2n.html`、`cardtest/bangkok.html`、`travel-agent.md`）→ 才做「错值缺席 / 修复项在场」。
+- 干净交付物（`cardtest/guilin.html`、`cardtest/guilin3d2n.html`、`cardtest/bangkok.html`、`cardtest/guilin-spend.html`、`travel-agent.md`）→ 才做「错值缺席 / 修复项在场」。
 
 注意 `travel-agent.md:30` 的 `¥168/人` 是**故意的反例说明**，缺席清单绝不能含它。
 
@@ -138,6 +142,27 @@ cd C:/ai/cardtest
 - 反向验证 4 处故障注入（改 kicker / 删只认现金 / 改两个大数字）各 exit 1 且准确命中、还原 exit 0。
 顺带把 `shot.py` 的渲染高度做成第 4 个参数可覆盖（`shot.py <html> <png> 1080 6000`），
 根治反复出现的「高卡页脚被 --screenshot 裁掉」。**共 +21 条断言**。
+
+**2026-11-07 补的第五层缺口（PASS 182 → 209）：一处空头承诺收口 + 行为层可观测性**。
+盘点发现 `travel-agent.md:201,273` 与 `cardtest/guilin-spend.html` 都承诺「说『记一笔 ¥XX 项目』
+就自动追加一行、自动更新对账」，但仓库里根本没有记账逻辑——spend/review 两模式只在纸面成立。
+本轮补三件、全部静态可验、跨平台、不依赖凭据/LLM：
+- **[I] 记账内核 `cardtest/ledger.py`**：兑现承诺。`PLAN` 是计划额唯一真值源
+  （交通 1102 / 住宿 1008 / 餐饮 650 / 门票 400 / 市内交通 240 = 3400）；
+  `add_entry(..., *, amount, ...)` 的 `amount` **必填无默认值**，从接口杜绝替用户编金额；
+  `compute()` 纯函数算各类目已花/差额；`render_spend(空账本)` 生成空白模板态 HTML。
+  顺带修掉 `guilin-spend.html` 一个真 bug：旧卡计划额写成 780/510/300=¥3,700（人均 1850），
+  与基准 ¥3,400（人均 1700）和卡头「¥1,700/人」自相矛盾，现由生成器统一产出。
+  `[I]` 直接 `compile()` 源码调用 `compute()` 与 `ledger-golden.json` 的 3 笔演示账对账，
+  并断言「入库卡 == render_spend(空)」——改 PLAN 会自动同步三处。
+- **[J] 行为回放「不判分只留痕」`examples/cases.json` + `replay.py`**：把 5 个基准的复现输入
+  固化成用例，`replay.py list/prompt/trace` 生成带时间戳的逐轮留痕供**人眼 diff**。
+  **刻意不给 PASS/FAIL**：行为层非确定性，脚本自动判分只会制造假绿灯。`[J]` 只验 cases 结构
+  （schema/用例数/source 指向存在/字段齐全/「不判分」声明还在），把行为对照诚实地留给人。
+- 6 处故障注入（spend 卡旧错值 / PLAN 漂移 / golden 改数 / cases 引用失效 / 丢「不判分」/
+  replay.py 操作卡丢失）各 exit 1 且准确命中、还原 exit 0。反向验证还抓到并修掉一个真弱点：
+  `check_ledger()` 原用 `importlib` 会读 `__pycache__` 旧 `.pyc`（等长数字改回命中缓存）产生假 FAIL，
+  现改成从源码字节 `compile()`，注释写明「回归断言必须只信当前源码字节，不能信任何缓存」。
 
 **2026-11-05 加 CI 门禁**：上面这套自检再好用，也只在本地、只在人记得跑的时候生效。
 新增 `.github/workflows/regress.yml`，push / PR 自动跑 `regress.py` 当门禁并上传报告 artifact。

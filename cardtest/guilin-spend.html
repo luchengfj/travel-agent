@@ -1,128 +1,78 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
+<head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>桂林阳朔 · 实时消费记录卡</title>
+
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  html, body { background:#FBF8F2; }
-  body {
-    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
-    -webkit-font-smoothing: antialiased;
-    font-feature-settings: "tnum";
-  }
-  .page { width:1080px; }
-
-  /* ---------- HEADER ---------- */
-  .hero {
-    background: linear-gradient(150deg, #16302B 0%, #1E3A34 45%, #2A4F46 100%);
-    padding: 54px 64px 46px; position: relative; overflow: hidden;
-  }
-  .hero::after {
-    content:""; position:absolute; right:-140px; top:-140px;
-    width:440px; height:440px; border-radius:50%;
-    background: radial-gradient(circle, rgba(200,155,60,.22) 0%, rgba(200,155,60,0) 68%);
-  }
-  .kicker { font-size:15px; letter-spacing:.34em; color:#7FA398; font-weight:600; text-transform:uppercase; margin-bottom:20px; }
-  .h1 { font-size:56px; font-weight:700; color:#fff; letter-spacing:-.02em; line-height:1.08; }
-  .h1 em { font-style:normal; color:#D8B968; }
-  .sub { font-size:19px; color:#A9C4BB; margin-top:15px; letter-spacing:.02em; }
-  .kpis { display:flex; gap:18px; margin-top:40px; }
-  .kpi {
-    flex:1; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.13);
-    border-radius:14px; padding:22px 26px;
-  }
-  .kpi .k { font-size:14px; color:#7FA398; letter-spacing:.08em; margin-bottom:10px; }
-  .kpi .v { font-size:42px; font-weight:700; color:#fff; letter-spacing:-.03em; }
-  .kpi .v small { font-size:17px; color:#94B3A9; font-weight:400; margin-left:4px; }
-  .kpi.acc .v { color:#D8B968; }
-
-  /* ---------- SECTION ---------- */
-  .sec { padding: 46px 64px 0; }
-  .sectitle { display:flex; align-items:center; gap:14px; margin-bottom:26px; }
-  .sectitle .bar { width:5px; height:26px; background:#C8553D; border-radius:3px; }
-  .sectitle h2 { font-size:30px; font-weight:700; color:#1E3A34; letter-spacing:-.01em; }
-  .sectitle .note { font-size:16px; color:#A29A8C; margin-left:auto; letter-spacing:.02em; }
-
-  /* ---------- CATEGORY ---------- */
-  .cat {
-    display:grid; grid-template-columns: 1.4fr 1fr 1fr 1fr;
-    align-items:center; padding:20px 26px; border-radius:14px;
-    border:1px solid #E8E2D6; background:#FFFDF9; margin-bottom:14px;
-  }
-  .cat .name { font-size:21px; font-weight:700; color:#1E3A34; }
-  .cat .name small { display:block; font-size:14px; color:#A29A8C; font-weight:400; margin-top:3px; }
-  .cat .col { text-align:right; }
-  .cat .col .lab { font-size:13px; color:#A29A8C; letter-spacing:.04em; margin-bottom:5px; }
-  .cat .col .val { font-size:24px; font-weight:700; color:#1E3A34; font-variant-numeric:tabular-nums; }
-  .cat .col .val.plan { color:#8D8577; font-weight:600; }
-  .cat .col .val.diff { color:#5B7C99; }
-
-  .sumrow {
-    display:flex; justify-content:space-between; align-items:center;
-    margin-top:8px; padding:22px 26px; background:#F4F0E6; border-radius:14px;
-    border-left:5px solid #1E3A34;
-  }
-  .sumrow .l { font-size:19px; color:#4A5A55; font-weight:700; letter-spacing:.03em; }
-  .sumrow .r { font-size:30px; color:#1E3A34; font-weight:700; letter-spacing:-.02em; }
-  .sumrow .r small { font-size:16px; color:#8D8577; font-weight:400; }
-
-  /* ---------- LEDGER ---------- */
-  .ledger { margin-top:34px; }
-  .ltab { width:100%; border-collapse:collapse; }
-  .ltab th {
-    font-size:15px; color:#A29A8C; font-weight:700; text-align:left;
-    padding:0 16px 14px; border-bottom:2px solid #E8E2D6; letter-spacing:.04em;
-  }
-  .ltab th.amt { text-align:right; }
-  .ltab td {
-    font-size:19px; color:#2E3D38; padding:18px 16px;
-    border-bottom:1px dashed #E8E2D6;
-  }
-  .ltab td.amt { text-align:right; font-weight:700; color:#1E3A34; font-variant-numeric:tabular-nums; }
-  .ltab td.t { color:#5B7C99; font-weight:600; }
-  .ltab tr.empty td {
-    text-align:center; color:#B5AD9E; font-size:17px; padding:30px 16px;
-    font-style:italic; border-bottom:none;
-  }
-
-  /* ---------- ALERT ---------- */
-  .alert {
-    margin: 44px 64px 0; background: linear-gradient(100deg, #FDF1EC 0%, #FAF3E4 100%);
-    border-left:5px solid #C8553D; border-radius:0 14px 14px 0; padding:26px 30px;
-  }
-  .alert .t { display:flex; align-items:center; gap:10px; font-size:20px; color:#A8442F; font-weight:700; margin-bottom:14px; }
-  .alert ul { list-style:none; }
-  .alert li { font-size:17px; color:#6A5348; line-height:1.72; padding-left:18px; position:relative; }
-  .alert li::before { content:""; position:absolute; left:0; top:11px; width:6px; height:6px; border-radius:50%; background:#C89B3C; }
-  .alert li b { color:#8A3D2B; font-weight:700; }
-
-  /* ---------- FOOTER ---------- */
-  .foot { margin-top:42px; padding:26px 64px 40px; border-top:1px solid #E8E2D6; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:#FBF8F2; font-family:"Microsoft YaHei","PingFang SC",sans-serif;
+         font-feature-settings:"tnum"; color:#1E3A34; }
+  .page { width:1080px; padding:54px 60px 60px; }
+  .hero { background:#1E3A34; color:#FBF8F2; border-radius:22px;
+          padding:46px 50px 40px; }
+  .kicker { letter-spacing:3px; font-size:15px; color:#C89B3C; font-weight:700; }
+  .h1 { font-size:54px; font-weight:800; margin-top:10px; letter-spacing:2px; }
+  .sub { font-size:18px; color:#C9D3CE; margin-top:12px; }
+  .kpis { display:flex; gap:16px; margin-top:34px; }
+  .kpi { flex:1; background:rgba(251,248,242,.08); border:1px solid rgba(251,248,242,.14);
+         border-radius:14px; padding:20px 24px; }
+  .kpi.acc { border-color:#C8553D; }
+  .kpi .k { font-size:15px; color:#C9D3CE; }
+  .kpi .v { font-size:40px; font-weight:800; margin-top:6px; }
+  .kpi .v small { font-size:20px; font-weight:600; }
+  .sec { margin-top:38px; }
+  .sectitle { display:flex; align-items:center; gap:14px; margin-bottom:18px; }
+  .sectitle .bar { width:6px; height:26px; background:#C8553D; border-radius:3px; }
+  .sectitle h2 { font-size:27px; font-weight:800; }
+  .sectitle .note { margin-left:auto; font-size:15px; color:#8D8577; }
+  .cat { display:flex; align-items:center; background:#FFFFFF; border:1px solid #E8E2D6;
+         border-radius:12px; padding:16px 22px; margin-bottom:10px; }
+  .cat .name { width:340px; font-size:20px; font-weight:700; }
+  .cat .name small { display:block; font-size:13px; font-weight:400; color:#8D8577; margin-top:4px; }
+  .cat .col { flex:1; text-align:right; }
+  .cat .lab { font-size:13px; color:#8D8577; }
+  .cat .val { font-size:22px; font-weight:800; margin-top:2px; }
+  .cat .val.plan { color:#1E3A34; }
+  .cat .val.diff { color:#5B7C99; }
+  .sumrow { display:flex; justify-content:space-between; background:#1E3A34; color:#FBF8F2;
+            border-radius:12px; padding:20px 24px; margin-top:14px; font-size:20px; font-weight:800; }
+  .sumrow .r small { color:#C89B3C; }
+  table.ltab { width:100%; border-collapse:collapse; background:#FFFFFF;
+               border:1px solid #E8E2D6; border-radius:12px; overflow:hidden; }
+  .ltab th { background:#EAF0F5; color:#1E3A34; font-size:15px; text-align:left;
+             padding:14px 20px; font-weight:700; }
+  .ltab td { padding:14px 20px; font-size:17px; border-top:1px solid #EFEAE0; }
+  .ltab td.amt, .ltab th.amt { text-align:right; font-weight:800; }
+  .ltab tr.empty td { text-align:center; color:#8D8577; font-size:16px; padding:30px; }
+  .alert { margin-top:34px; background:#FBF3E2; border-left:6px solid #C89B3C;
+           border-radius:10px; padding:22px 26px; }
+  .alert .t { font-size:19px; font-weight:800; color:#8A6A1F; margin-bottom:10px; }
+  .alert ul { padding-left:22px; }
+  .alert li { font-size:16px; line-height:1.9; color:#5C533F; }
+  .foot { margin-top:34px; border-top:1px dashed #E8E2D6; padding-top:18px; }
   .foot .src { font-size:14px; color:#A29A8C; line-height:1.85; }
-  .foot .src b { color:#8D8577; font-weight:700; }
-  .foot .meta { display:flex; justify-content:space-between; align-items:center; margin-top:18px; padding-top:16px; border-top:1px dashed #E8E2D6; }
-  .foot .meta div { font-size:14px; color:#B5AD9E; letter-spacing:.04em; }
+  .foot .src b { color:#8D8577; }
+  .foot .meta { display:flex; justify-content:space-between; margin-top:14px;
+                font-size:14px; color:#B5AD9E; letter-spacing:.04em; }
 </style>
 
+</head>
+<body>
 <div class="page">
-  <div class="hero">
-    <div class="kicker">GUILIN · YANGSHUO · SPEND LOG</div>
-    <div class="h1">实时消费记录卡</div>
-    <div class="sub">桂林阳朔 12/1–12/4 &nbsp;·&nbsp; 2 人 &nbsp;·&nbsp; 均衡档基准 ¥1,700 / 人</div>
-
-    <div class="kpis">
-      <div class="kpi"><div class="k">已记录笔数</div><div class="v">0 <small>笔</small></div></div>
-      <div class="kpi acc"><div class="k">累计花费</div><div class="v">¥0</div></div>
-      <div class="kpi"><div class="k">占预算比例</div><div class="v">0<small>%</small></div></div>
-    </div>
+<div class="hero">
+  <div class="kicker">GUILIN · YANGSHUO · SPEND LOG</div>
+  <div class="h1">实时消费记录卡</div>
+  <div class="sub">桂林阳朔 12/1–12/4 &nbsp;·&nbsp; 2 人 &nbsp;·&nbsp; 均衡档基准 ¥1,700 / 人</div>
+  <div class="kpis">
+    <div class="kpi"><div class="k">已记录笔数</div><div class="v">0 <small>笔</small></div></div>
+    <div class="kpi acc"><div class="k">累计花费</div><div class="v">¥0</div></div>
+    <div class="kpi"><div class="k">占预算比例</div><div class="v">0<small>%</small></div></div>
   </div>
-
+</div>
   <div class="sec">
-    <div class="sectitle">
-      <div class="bar"></div>
-      <h2>类目对账</h2>
-      <div class="note">计划额来自均衡档骨架</div>
-    </div>
-
+    <div class="sectitle"><div class="bar"></div><h2>类目对账</h2><div class="note">计划额来自均衡档骨架（由 ledger.py 生成）</div></div>
     <div class="cat">
       <div class="name">交通<small>深圳北⇄阳朔 高铁往返</small></div>
       <div class="col"><div class="lab">计划</div><div class="val plan">¥1,102</div></div>
@@ -137,66 +87,51 @@
     </div>
     <div class="cat">
       <div class="name">餐饮<small>啤酒鱼 / 烧鹅 / 米粉等</small></div>
-      <div class="col"><div class="lab">计划</div><div class="val plan">¥780</div></div>
+      <div class="col"><div class="lab">计划</div><div class="val plan">¥650</div></div>
       <div class="col"><div class="lab">已花</div><div class="val">¥0</div></div>
-      <div class="col"><div class="lab">差额</div><div class="val diff">−¥780</div></div>
+      <div class="col"><div class="lab">差额</div><div class="val diff">−¥650</div></div>
     </div>
     <div class="cat">
       <div class="name">门票<small>遇龙河/漓江/银子岩等</small></div>
-      <div class="col"><div class="lab">计划</div><div class="val plan">¥510</div></div>
+      <div class="col"><div class="lab">计划</div><div class="val plan">¥400</div></div>
       <div class="col"><div class="lab">已花</div><div class="val">¥0</div></div>
-      <div class="col"><div class="lab">差额</div><div class="val diff">−¥510</div></div>
+      <div class="col"><div class="lab">差额</div><div class="val diff">−¥400</div></div>
     </div>
     <div class="cat">
-      <div class="name">其他<small>电动车/打车/零食</small></div>
-      <div class="col"><div class="lab">计划</div><div class="val plan">¥300</div></div>
+      <div class="name">市内交通<small>打车 / 包车 / 接驳</small></div>
+      <div class="col"><div class="lab">计划</div><div class="val plan">¥240</div></div>
       <div class="col"><div class="lab">已花</div><div class="val">¥0</div></div>
-      <div class="col"><div class="lab">差额</div><div class="val diff">−¥300</div></div>
+      <div class="col"><div class="lab">差额</div><div class="val diff">−¥240</div></div>
     </div>
-
     <div class="sumrow">
       <div class="l">合计（2 人）</div>
-      <div class="r">计划 ¥3,700 &nbsp;·&nbsp; 已花 ¥0 &nbsp;·&nbsp; 差额 <small>−¥3,700</small></div>
+      <div class="r">计划 ¥3,400 &nbsp;·&nbsp; 已花 ¥0 &nbsp;·&nbsp; 差额 <small>−¥3,400</small></div>
     </div>
   </div>
-
   <div class="sec ledger">
-    <div class="sectitle">
-      <div class="bar"></div>
-      <h2>逐笔流水</h2>
-      <div class="note">说「记一笔 ¥XX 项目」即追加</div>
-    </div>
+    <div class="sectitle"><div class="bar"></div><h2>逐笔流水</h2><div class="note">说「记一笔 ¥XX 项目」即追加</div></div>
     <table class="ltab">
-      <thead>
-        <tr><th style="width:160px;">时间</th><th>项目</th><th class="amt" style="width:200px;">金额</th><th style="width:180px;">支付方式</th></tr>
-      </thead>
+      <thead><tr><th style="width:160px;">时间</th><th>项目</th><th class="amt" style="width:200px;">金额</th><th style="width:180px;">支付方式</th></tr></thead>
       <tbody>
-        <tr class="empty"><td colspan="4">暂无记录 —— 出行后告诉本 Agent「记一笔 ¥XX 项目」，会自动追加到此处并更新上方对账</td></tr>
+        <tr class="empty"><td colspan="4">暂无记录 —— 出行后告诉本 Agent 「记一笔 ¥XX 项目」，会自动追加到此处并更新上方对账</td></tr>
       </tbody>
     </table>
   </div>
-
   <div class="alert">
-    <div class="t">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C8553D" stroke-width="2.4" stroke-linecap="round"><path d="M12 9v5M12 17.5v.5"/><circle cx="12" cy="12" r="9"/></svg>
-      记账提醒
-    </div>
+    <div class="t">记账提醒</div>
     <ul>
       <li>当天没记账的<b>第二天补</b>；拖到最后凭记忆凑，误差比预算本身还大。</li>
       <li><b>金额必须来自你</b>：本卡不替你编支出。说「记一笔 ¥150 啤酒鱼 微信」即可，现金填「现金」。</li>
       <li>本卡为<b>演示模板</b>：所有「计划」数字来自均衡档骨架，非真实消费；出行后逐笔填充，「已花/差额」才会变。</li>
     </ul>
   </div>
-
   <div class="foot">
     <div class="src">
-      <b>数据来源</b>　类目计划额 = 均衡档预算骨架拆项（交通 2 人 ¥1,102 / 住宿 ¥1,008 / 餐饮 ¥780 / 门票 ¥510 / 其他 ¥300，合计 ¥3,700）。<br>
-      <b>说明</b>　实际支出以你逐笔记录为准；本卡所有「已花」为 0，属模板初始态，非真实账单。
+      <b>数据来源</b>　类目计划额 = 均衡档预算骨架拆项（交通 ¥1,102 / 住宿 ¥1,008 / 餐饮 ¥650 / 门票 ¥400 / 市内交通 ¥240，合计 ¥3,400），与 examples/guilin-example.md:92-99 一致。<br>
+      <b>说明</b>　实际支出以你逐笔记录为准；本工具不替用户编金额，空账本时所有「已花」为 0，属模板初始态，非真实账单。
     </div>
-    <div class="meta">
-      <div>示例生成日 2026-11-02</div>
-      <div>SPEND MODE</div>
-    </div>
+    <div class="meta"><div>由 cardtest/ledger.py 生成</div><div>SPEND MODE</div></div>
   </div>
 </div>
+</body>
 </html>

@@ -9,7 +9,7 @@ regress.py — 旅行 Agent 提示词 / 回归基准 的一次性自检脚本
     "$PY" examples/regress.py --report     # 同时落盘 report.md
     "$PY" examples/regress.py --emit-prompt # 打印「喂给 Agent 的复现指令」后退出
 
-它验八件事，缺一不可：
+它验十件事，缺一不可：
   [A] 结构 : travel-agent.md 的必需章节、硬规则关键词、7 张图卡规格都在
   [B] 数字 : 四份样例里的分项/合计/人均/换算，用 Python 重算一遍（基准自己也会算错）
   [C] 基准 : 四份样例的检查点、历史翻车点、已知 bug 记录仍在；并检测已修 bug 复发
@@ -18,6 +18,8 @@ regress.py — 旅行 Agent 提示词 / 回归基准 的一次性自检脚本
   [F] 卡片 : 全部入库 HTML 卡的基础色板、DOCTYPE、编码、品牌名、kicker 天数关系（DAYS = NIGHTS + 1）
   [G] 快照 : 价格 JSON 有采集时间、rows 可解析，且统计值与提示词里的声明一致
   [H] 出境卡 : travel-agent.md:396-401 规定的 5 个固定附加块真的出现在渲染卡 bangkok.html 上
+  [I] 记账内核 : ledger.py 的 compute/add_entry 兑现 spend 承诺，PLAN 与基准一致，golden 夹具对账，入库卡与生成器同步
+  [J] 行为回放 : cases.json 复现用例结构完整、指向存在的基准；replay.py 只留痕不判分
 
 脚本只做「静态 + 算术」检查，不调用 LLM、不渲染图卡。
 逐轮喂给 Agent 的**行为对照**仍按 README.md「怎么跑一次回归」人工/半自动完成，
@@ -255,6 +257,25 @@ EXPECTED = {
 # 注意 travel-agent.md:30 含「¥168/人」是**故意的反例说明**，所以提示词的缺席
 # 清单里绝不能放这条，否则又是一个假阳性。
 CLEAN_FILES = {
+    # 2026-11-07 纳入：spend 卡。此前计划额写 780/510/300 合计 3700，与基准
+    # 3400 及卡头人均 1700 自相矛盾（真 bug），且「记一笔自动对账」只是纸面承诺。
+    # 现在这张卡由 cardtest/ledger.py 生成；这里锁住旧错值不得复发、口径值必须在场。
+    "cardtest/guilin-spend.html": {
+        "label": "spend 消费记录卡（ledger.py 生成）",
+        "absent": [
+            (r"3,700", "合计误写 ¥3,700（应为 ¥3,400）"),
+            (r"¥780", "餐饮计划误写 ¥780（应为 ¥650）"),
+            (r"¥510", "门票计划误写 ¥510（应为 ¥400）"),
+            (r"¥300", "市内交通/其他计划误写 ¥300（应为 ¥240）"),
+        ],
+        "present": [
+            (r"3,400", "合计 ¥3,400 与基准一致"),
+            (r"1,700", "头部人均 ¥1,700"),
+            (r"市内交通", "第 5 类目改回「市内交通」口径"),
+            (r"¥650", "餐饮计划 ¥650"),
+        ],
+        "min_count": [],
+    },
     "cardtest/guilin.html": {
         "label": "桂林卡（真正渲染出来的交付物）",
         "absent": [
@@ -365,6 +386,12 @@ FACTS = {
 # 即：断言确实认得自己要防的那个错。纯内存构造，不碰真实文件。
 # 格式：rel -> [(absent 正则, 能命中该正则的错值样例), ...]
 SELFTEST = {
+    "cardtest/guilin-spend.html": [
+        (r"3,700", "合计（2 人）计划 ¥3,700 · 差额 −¥3,700"),
+        (r"¥780", "餐饮 计划 ¥780 已花 ¥0"),
+        (r"¥510", "门票 计划 ¥510 已花 ¥0"),
+        (r"¥300", "其他 计划 ¥300 已花 ¥0"),
+    ],
     "cardtest/guilin.html": [
         (r"3 DAYS 3 NIGHTS", "GUILIN · 3 DAYS 3 NIGHTS"),
         (r"¥168/人|168/人", "住宿按 ¥168/人 计"),
@@ -421,7 +448,7 @@ def check_self():
     check(len(DOC_RECORD_SECTIONS) == 4, "自检·配置",
           "DOC_RECORD_SECTIONS 4 份齐全",
           "DOC_RECORD_SECTIONS 只剩 %d 份" % len(DOC_RECORD_SECTIONS))
-    check(len(CLEAN_FILES) == 4, "自检·配置", "CLEAN_FILES 4 个交付物齐全",
+    check(len(CLEAN_FILES) == 5, "自检·配置", "CLEAN_FILES 5 个交付物齐全",
           "CLEAN_FILES 只剩 %d 个" % len(CLEAN_FILES))
 
     # 每个干净交付物：文件真实存在，且确实配了断言（别出现「加了文件忘了配」）
@@ -725,6 +752,151 @@ def check_exit_card():
 
 
 # ==========================================================================
+# [I] 记账内核：兑现 spend/review 的「记一笔 → 自动更新对账」承诺
+# ==========================================================================
+# 设计理由：travel-agent.md:201 / :273 写着「用户说记一笔 ¥XX 项目就追加一行、
+# 自动更新上方对账」，但仓库此前只有 3 个脚本、没有记账逻辑、没有实测、没有断言；
+# guilin-spend.html 还是一张 ¥0 空白模板。这是 m03520 盘点出的唯一「承诺了没实现」。
+# [I] 直接 importlib 加载 cardtest/ledger.py 调用 compute()/add_entry()/render_spend()，
+# 做确定性的功能验证（纯标准库、不联网、不渲图），不是只读文本。
+LEDGER = {
+    "module": "cardtest/ledger.py",
+    "golden": "cardtest/ledger-golden.json",
+    "card": "cardtest/guilin-spend.html",
+    "canonical": {"交通": 1102, "住宿": 1008, "餐饮": 650, "门票": 400, "市内交通": 240},
+    "plan_total": 3400,
+}
+
+
+def check_ledger():
+    import inspect
+    import types
+    modpath = ROOT / LEDGER["module"]
+    if not modpath.exists():
+        check(False, "记账·内核", "", "%s 不存在" % LEDGER["module"])
+        return
+    try:
+        # 直接从源码 compile，绕过 __pycache__：否则「等长数字改回」（650→780→650
+        # 字节数不变）会命中注入态残留的旧 .pyc，让回归读出旧值产生假 FAIL。
+        # 回归断言必须只信当前源码字节，不能信任何缓存。
+        src = modpath.read_text(encoding="utf-8")
+        m = types.ModuleType("ledger_kernel")
+        m.__file__ = str(modpath)
+        exec(compile(src, str(modpath), "exec"), m.__dict__)
+    except Exception as e:
+        check(False, "记账·内核", "", "ledger.py 加载失败：%s" % e)
+        return
+    check(True, "记账·内核", "ledger.py 可作为模块加载（纯标准库）", "")
+
+    # PLAN 是计划额唯一真值源，必须与 guilin-example.md 均衡档逐项一致
+    plan = {p["key"]: p["plan"] for p in m.PLAN}
+    check(plan == LEDGER["canonical"] and sum(plan.values()) == LEDGER["plan_total"],
+          "记账·计划额真值源",
+          "PLAN 与基准一致（%s = %d）" % ("/".join(str(v) for v in plan.values()),
+                                        LEDGER["plan_total"]),
+          "PLAN 漂移：%r" % plan)
+
+    # 金额必须来自用户：add_entry 的 amount 必填且无默认值（不替用户编金额）
+    amt = inspect.signature(m.add_entry).parameters.get("amount")
+    guard = amt is not None and amt.default is inspect.Parameter.empty
+    check(guard, "记账·金额来自用户",
+          "add_entry 的 amount 必填无默认值（不替用户编金额）",
+          "amount 有默认值或缺失 —— 可能替用户编金额，违反 travel-agent.md:201")
+
+    # golden 夹具：compute() 的逐项对账结果
+    gpath = ROOT / LEDGER["golden"]
+    if not gpath.exists():
+        check(False, "记账·golden 对账", "", "%s 不存在" % LEDGER["golden"])
+        return
+    g = json.loads(gpath.read_text(encoding="utf-8"))
+    c = m.compute(g)
+    e = g["expected"]
+    ok = (c["count"] == e["count"]
+          and abs(c["total"] - e["total"]) < 1e-6
+          and abs(c["sum_spent"] - e["sum_spent"]) < 1e-6
+          and abs(c["sum_diff"] - e["sum_diff"]) < 1e-6
+          and c["plan_total"] == e["plan_total"]
+          and all(abs(c["cats"][k]["spent"] - v) < 1e-6
+                  for k, v in e["spent_by_cat"].items()))
+    check(ok, "记账·golden 对账",
+          "%d 笔 / 累计 ¥%s / 各类目已花与夹具一致" % (c["count"], c["total"]),
+          "compute() 与 golden 夹具不符：%r" % c)
+
+    # 空账本 = 空白模板态，不填假数字（travel-agent.md:201）
+    empty = m.compute({"entries": []})
+    check(empty["count"] == 0 and empty["total"] == 0,
+          "记账·空白模板态",
+          "空账本 0 笔 / 累计 ¥0（不替用户编数字）",
+          "空账本就带支出，违反「没数据只给空白模板」")
+
+    # 单一真值源：入库卡必须与 render_spend(空账本) 完全一致
+    # （有人手改 HTML 却没改 ledger.py → 这里 FAIL）
+    card = read(ROOT / LEDGER["card"])
+    rendered = m.render_spend({"entries": []})
+    check(card is not None and card.strip() == rendered.strip(),
+          "记账·生成/入库同步",
+          "guilin-spend.html 与 render_spend(空) 完全一致（改 PLAN 自动同步三处）",
+          "入库卡与生成器不同步 —— 有人手改了 HTML 却没改 ledger.py")
+
+
+# ==========================================================================
+# [J] 行为回放用例：结构完整性（不判分只留痕）
+# ==========================================================================
+# 设计理由：静态回归查不了「逐轮行为输出是否同构」。这里不试图自动判分
+# （措辞差异 / LLM 非确定性会让判分制造假 FAIL），只保证 cases.json 的
+# 复现输入清单没被删空、每个用例都指向真实存在的基准、replay.py 提供留痕能力。
+REPLAY = {
+    "cases": "examples/cases.json",
+    "tool": "examples/replay.py",
+    "expected_cases": 5,
+}
+
+
+def check_replay():
+    p = ROOT / REPLAY["cases"]
+    if not p.exists():
+        check(False, "回放·cases.json", "", "%s 不存在" % REPLAY["cases"])
+        return
+    try:
+        d = json.loads(p.read_text(encoding="utf-8"))
+    except Exception as ex:
+        check(False, "回放·cases.json", "", "JSON 解析失败：%s" % ex)
+        return
+    check(d.get("schema") == 1, "回放·cases.json", "schema=1 可识别",
+          "schema 缺失：%r" % d.get("schema"))
+    cases = d.get("cases")
+    check(isinstance(cases, list) and len(cases) == REPLAY["expected_cases"],
+          "回放·用例清单",
+          "%d 个复现用例齐全" % REPLAY["expected_cases"],
+          "用例数 %r（应 %d）" % (len(cases) if isinstance(cases, list) else None,
+                                 REPLAY["expected_cases"]))
+    if not isinstance(cases, list):
+        return
+    ids = [c.get("id") for c in cases]
+    check(len(ids) == len(set(ids)), "回放·用例 id", "id 无重复", "id 重复：%s" % ids)
+    miss_src = [c.get("source") for c in cases
+                if c.get("source") and not (ROOT / c["source"]).exists()]
+    check(not miss_src, "回放·基准引用",
+          "%d 个用例都指向存在的基准" % len(cases),
+          "指向不存在的基准：%s" % miss_src)
+    incomplete = [c.get("id") for c in cases
+                  if not all(c.get(k) for k in ("intent", "turns", "watch", "hard_facts"))]
+    check(not incomplete, "回放·用例字段",
+          "每个用例都有 intent/turns/watch/hard_facts",
+          "字段不全：%s" % incomplete)
+    # 「不判分」是这套骨架的立身之本，台账必须明说
+    check("不判分" in d.get("note", "") and "不判分" in d.get("principle", ""),
+          "回放·不判分原则",
+          "台账明说「不判分只留痕」（不制造假 FAIL）",
+          "丢了不判分声明 —— 有人想给行为回放加自动判分")
+    tool = read(ROOT / REPLAY["tool"])
+    check(tool is not None and "不判分" in tool and "def cmd_trace" in tool,
+          "回放·操作卡",
+          "replay.py 提供 list/prompt/trace，且明说不判分",
+          "replay.py 缺失或丢了 trace 留痕能力")
+
+
+# ==========================================================================
 # 复现输入（脚本不跑 LLM，只把「该喂什么」列清楚）
 # ==========================================================================
 REPRO = [
@@ -764,7 +936,8 @@ def render():
     out.append(f"- 生成时间：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     out.append(f"- 工作目录：`{ROOT}`")
     out.append(f"- 检查对象：`travel-agent.md` + `examples/` 四份基准 + `README.md` + 断言自检"
-               f" + 事实台账 + 卡片静态健全 + 价格快照交叉 + 出境卡附加块")
+               f" + 事实台账 + 卡片静态健全 + 价格快照交叉 + 出境卡附加块"
+               f" + 记账内核 + 行为回放用例")
     out.append("")
     n_fail = sum(1 for l, _, _ in RESULTS if l == "FAIL")
     n_pass = sum(1 for l, _, _ in RESULTS if l == "PASS")
@@ -795,7 +968,8 @@ def render():
     out.append("## 脚本没覆盖的部分（仍需人工/半自动）")
     out.append("")
     out.append("本脚本只做**静态结构 + 算术重算 + 基准完整性 + 断言自检 + 事实台账 + "
-               "卡片静态健全 + 价格快照交叉 + 出境卡附加块**检查。下面四项必须按 "
+               "卡片静态健全 + 价格快照交叉 + 出境卡附加块 + 记账内核 + "
+               "行为回放用例**检查。下面四项必须按 "
                "`examples/README.md`「怎么跑一次回归」实际喂给 Agent 对照：")
     out.append("")
     out.append("1. 逐轮**行为输出**是否同构（首行模式标签、≤3 问带默认值、三档内容不同…）")
@@ -833,6 +1007,8 @@ def main():
     check_cards()
     check_snapshots()
     check_exit_card()
+    check_ledger()
+    check_replay()
 
     report = render()
     print(report)

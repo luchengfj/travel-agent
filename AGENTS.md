@@ -8,13 +8,16 @@
 | 文件 | 角色 | 改它时要同步什么 |
 |---|---|---|
 | `travel-agent.md` | 主提示词（Agent 的全部行为规则） | 章节/硬规则/图卡规格变动 → `examples/regress.py` 的 `required_heads` / `rules` / `cards` |
-| `examples/*-example.md` | 4 份基准样例（桂林 / 杭州 / 多角色 / 曼谷） | 数字 → `check_numbers()`；事实锚点 → `FACTS` / `examples/facts.json` |
+| `examples/*-example.md` | 4 份基准样例（桂林 / 杭州 / 多角色 / 曼谷）+ `perfect-trip.md` 端到端成品 | 数字 → `check_numbers()`；事实锚点 → `FACTS` / `examples/facts.json` |
 | `examples/regress.py` | 一次性静态回归，`--report` 出 `report.md` | 改断言 → 必须同步 `SELFTEST` 里对应的错值样例 |
 | `examples/facts.json` | 易过期事实台账（claim + verified_on + source_url） | 事实改了 → 台账先改，再改提示词/样例 |
-| `cardtest/*.html` | 7+1 张图卡的 HTML 源 | 改数字/天数/色板 → 回归的 `[F]`/`[G]` 会校验 |
+| `cardtest/*.html` | 10 张图卡的 HTML 源 | 改数字/天数/色板 → 回归的 `[F]`/`[G]` 会校验 |
 | `cardtest/*-prices-*.json` | 价格快照（含 `fetched_at`） | 提示词里的实测数字必须和快照统计一致（`[G]`） |
 | `cardtest/hotel_price.py` | 免登录 SSR 取价，写 JSON 时带 `fetched_at` | 别删 `fetched_at` |
+| `cardtest/ledger.py` | spend 记账内核（PLAN 唯一真值源 / compute / render_spend） | 改计划额 → `[I]` 会重算并比对 golden |
 | `cardtest/shot.py` | Edge 无头渲染 HTML→PNG | 只在本机 Windows 用，CI 不跑 |
+| `cardtest/ledger-golden.json` | 记账内核的 golden 夹具（3 笔演示账 + expected） | `[I]` 用它对 compute() 结果 |
+| `examples/cases.json` + `replay.py` | 行为回放「不判分只留痕」用例与操作卡 | `[J]` 只验结构，行为对照归人眼 |
 
 **铁律**：金额改一处，必须同步「分项 / 合计 / 图上大数字」三处；加总差 1 元也要找出来。
 基准样例的「bug 记录区」和「合格输出区」共存——**基准只断言「正确值必须出现」，
@@ -27,7 +30,7 @@ cd C:/ai && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py            # 打印
 cd C:/ai && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --report   # 落盘 report.md
 ```
 
-退出码 `0` = 全绿，`1` = 有 FAIL。当前基线 **PASS 182 / FAIL 0**。
+退出码 `0` = 全绿，`1` = 有 FAIL。当前基线 **PASS 209 / FAIL 0**。
 CI（`.github/workflows/regress.yml`）在每次 push / PR 上自动跑同一条命令，纯标准库、不联网。
 
 ## 3. 硬边界（别越线，也别假装做到了）
@@ -49,7 +52,8 @@ CI（`.github/workflows/regress.yml`）在每次 push / PR 上自动跑同一条
 2. 凡是「错值必须缺席」型断言，同步在 `SELFTEST` 配一个能命中它的错值样例（`[D]` 会验）。
 3. 用 `cardtest/_reverse*.py` 那种方式**注入故障验证它真会 FAIL**，再字节级还原——
    没做反向验证的断言不算数。
-4. 把新的 PASS 总数、检查项说明同步进 `README.md` / `examples/README.md` / `AGENT-解析.md`。
+4. 把新的 PASS 总数、检查项说明同步进 `README.md` / `examples/README.md` / `AGENT-解析.md` / `AGENTS.md`。
+5. 加载被检查的模块时**直接从源码 `compile()`，别用 `importlib`**：等长数字改回（650→780→650）会命中 `__pycache__` 旧 `.pyc`，让回归读出旧值产生假 FAIL。
 
 ## 5. 推送
 

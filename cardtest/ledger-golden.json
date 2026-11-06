@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "note": "记账内核的 golden 夹具：3 笔**演示**账（非真实消费）。regress.py 的 [I] 会喂给 ledger.compute() 并逐项核对，防止「记一笔 → 自动更新对账」的算术被改坏。",
+  "entries": [
+    {"time": "12/1 19:20", "item": "啤酒鱼",       "amount": 150,   "category": "餐饮", "pay": "微信"},
+    {"time": "12/1 08:00", "item": "高铁票",       "amount": 275.5, "category": "交通", "pay": "支付宝"},
+    {"time": "12/2 10:30", "item": "遇龙河竹筏",   "amount": 90,    "category": "门票", "pay": "现金"}
+  ],
+  "expected": {
+    "count": 3,
+    "total": 515.5,
+    "sum_spent": 515.5,
+    "sum_diff": 2884.5,
+    "plan_total": 3400,
+    "spent_by_cat": {
+      "交通": 275.5,
+      "住宿": 0,
+      "餐饮": 150,
+      "门票": 90,
+      "市内交通": 0
+    }
+  }
+}

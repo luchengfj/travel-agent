@@ -12,14 +12,15 @@
 | `team-example.md` | 桂林同一需求 · 多角色协作冲突场景（200 行，埋 5 个坑） | 验证汇总者会不会照单全收：口径统一、加总自检、冲突裁决、干扰项不误判 |
 | `bangkok-example.md` | 曼谷 4 天 3 晚 · **境外变体**（第 0–9 轮，286 行，埋 5 个坑） | 验证境外四件事：签证 / 入境登记 / 汇率 / 时差，以及「政策优惠的适用人群」陷阱 |
 | `perfect-trip.md` | 桂林阳朔 3 天 2 夜 · **端到端成品攻略**（现查房价/高铁/门票 + 天气双轨 + 三处加总） | 用真实需求走一遍完整链路，看「查不到就如实标注」「不写已计入」是否落地 |
-| `regress.py` | **一键静态回归脚本**（结构 + 算术 + 基准 + 自检 + 台账 + 卡片 + 快照 + 出境卡，八块） | 改完提示词先跑这一条，PASS 全绿再谈人工逐轮对照 |
+| `regress.py` | **一键静态回归脚本**（结构 + 算术 + 基准 + 自检 + 台账 + 卡片 + 快照 + 出境卡 + 记账 + 回放，十块） | 改完提示词先跑这一条，PASS 全绿再谈人工逐轮对照 |
+| `cases.json` + `replay.py` | 行为回放用例与操作卡（不判分只留痕） | 改完提示词跑一遍 `replay.py trace`，人眼 diff 逐轮输出 |
 | `report.md` | `regress.py --report` 生成的最新报告 | 留档 / 对比两次改动 |
 
 > 行数以脚本里的 `EXPECTED` 为准；上面写的行数会随修订变化，跑一次脚本就知道当前值。
 
 ## 一键静态回归（先跑这个）
 
-`regress.py` **不调大模型、不渲染图片、不联网**，只做八块确定性的事，一条命令出对比报告：
+`regress.py` **不调大模型、不渲染图片、不联网**，只做十块确定性的事，一条命令出对比报告：
 
 ```bash
 PY="C:/Users/cheng/.dsh/dsh-runtimes/dsh-next-primary-runtime/dependencies/python/python.exe"
@@ -33,12 +34,15 @@ cd C:/ai && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py
 - 检查 [B] **算术重算**：四份样例的分项→合计→人均全部用 Python 重算一遍，
   外加 THB→CNY 取整换算；基准文档里印错的数字（如 4520 / 9205 / 2950）会被抓出来。
 - 检查 [C] 基准完整性：行数 / 检查点条数 / 正确值锚点 / bug 记录区是否还在，
-  **以及干净交付物（桂林两张卡 HTML、曼谷境外卡、提示词本身）里已修 bug 是否复发**。
+  **以及干净交付物（桂林两张卡 HTML、曼谷境外卡、spend 卡、提示词本身）里已修 bug 是否复发**；
+  spend 卡还额外断言「入库卡 == ledger.py 生成的空账本」（见 [I]）。
 - 检查 [D] **断言自检**：防复发断言自己有没有被删空 / 改坏。每条 `absent` 断言都配了内存「错值样例」，脚本会活体验证正则真能命中错值；改坏一条就 FAIL。
 - 检查 [E] **事实台账**：`facts.json` 每条 claim 仍在声明文件里、`verified_on`/`source_url` 齐全；过复核期只报 INFO。
-- 检查 [F] **卡片静态健全**：全部 8 张入库卡的色板 / DOCTYPE / charset，以及 kicker 的 `DAYS = NIGHTS + 1` 通用规则。
+- 检查 [F] **卡片静态健全**：全部 10 张入库卡的色板 / DOCTYPE / charset，以及 kicker 的 `DAYS = NIGHTS + 1` 通用规则。
 - 检查 [G] **价格快照交叉**：价格 JSON 有 `fetched_at`、rows 可解析，且统计值与提示词里的实测数字一致。
 - 检查 [H] **出境卡附加块**：`cardtest/bangkok.html` 逐块验 5 个固定附加块真的在卡上（kicker 天数 / 汇率行带采集日期 / TDAC 时间窗 / 只认现金 / 不适用游客陷阱），并用 `>3,072<`、`>¥6,144<` 与基准做大数字 DOM 级交叉。
+- 检查 [I] **记账内核**：从源码 `compile()` 加载 `cardtest/ledger.py`，断言 `PLAN` 与基准一致、`amount` 必填无默认值、`compute()` 与 `ledger-golden.json` 对账、空账本 0 笔 ¥0、入库 `guilin-spend.html` == `render_spend(空)`。
+- 检查 [J] **行为回放用例**：`cases.json` 的 schema / 用例数 / id 去重 / source 指向存在 / 字段齐全 / 「不判分」声明还在，且 `replay.py` 提供 list/prompt/trace。**只验结构，不给行为判分**。
 
 ### 一个踩过的坑（别改回去）
 
@@ -47,7 +51,7 @@ cd C:/ai && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py
 都写着 `¥168/人`、`¥77.37`、竹筏 `¥75`……）。所以脚本现在分两类文件：
 
 - **基准样例** → 只断言「**正确值必须出现**」（`FACTS`）+「bug 记录区必须还在」（`DOC_RECORD_SECTIONS`）；
-- **干净交付物**（`cardtest/guilin.html`、`cardtest/guilin3d2n.html`、`cardtest/bangkok.html`、`travel-agent.md`）→ 才做「错值缺席 / 修复项在场 / 出现次数下限」。
+- **干净交付物**（`cardtest/guilin.html`、`cardtest/guilin3d2n.html`、`cardtest/bangkok.html`、`cardtest/guilin-spend.html`、`travel-agent.md`）→ 才做「错值缺席 / 修复项在场 / 出现次数下限」。
 
 另注 `travel-agent.md` 里 `¥168/人` 是**故意的反例说明**，提示词的缺席清单绝不能放这条。
 
@@ -154,7 +158,8 @@ PY="C:/Users/cheng/.dsh/dsh-runtimes/dsh-next-primary-runtime/dependencies/pytho
 | 2026-11-04 | **补回归覆盖缺口**：`guilin3d2n.html`（3 天 2 夜卡，最新且刚修过 3 类问题）此前完全不在 `CLEAN_FILES`，改坏了脚本查不出。现纳入 15 条断言；另修推送代理的隧道超时、清理 `.git/config` 里内嵌的凭据 | 3 天 2 夜卡 HTML | 0（反向注入 `3 DAYS 3 NIGHTS` 验证 FAIL 2 / exit 1，还原后 exit 0；PASS 50 → **65**） | 已交付并推送 GitHub |
 | 2026-11-05 | **补第二层缺口：断言自己没人测**。新增 [D] `check_self()` + `SELFTEST`：每条防复发正则配内存错值样例，活体验证能命中；校验配置规模、文件存在、断言数 > 0、无孤儿断言 | 脚本自身（元层） | 0（把 `3 DAYS 3 NIGHTS` 正则改成 `3 DAYS [Z]3 NIGHTS` → 自检报「断言失效」/ exit 1；还原 → exit 0；PASS 65 → **88**） | 已交付 |
 | 2026-11-05 | **补第三层缺口（PASS 88 → 157）**：[E] 事实台账 `facts.json` 11 条 / [F] 全部 8 张卡静态健全 + kicker 通用规则 / [G] 价格快照 `fetched_at` + 提示词数字交叉；`hotel_price.py` 写采集时间；新增 `AGENTS.md` | 台账 + 卡片 + 快照 + 交接指引 | 0（三处故障注入各 exit 1 且准确命中 → 还原 exit 0） | 已交付 |
-| 2026-11-06 | **补第四层缺口（PASS 161 → 182）**：[H] 出境卡 5 固定附加块 —— 新建 `cardtest/bangkok.html`（曼谷境外卡样板），逐块验附加块真的在卡上 + 大数字 DOM 级交叉；`shot.py` 渲染高度可覆盖 | 境外卡 HTML + 回归脚本 | 0（4 处故障注入各 exit 1 且准确命中 → 还原 exit 0） | 本轮 |
+| 2026-11-06 | **补第四层缺口（PASS 161 → 182）**：[H] 出境卡 5 固定附加块 —— 新建 `cardtest/bangkok.html`（曼谷境外卡样板），逐块验附加块真的在卡上 + 大数字 DOM 级交叉；`shot.py` 渲染高度可覆盖 | 境外卡 HTML + 回归脚本 | 0（4 处故障注入各 exit 1 且准确命中 → 还原 exit 0） | 已交付 |
+| 2026-11-07 | **补第五层缺口（PASS 182 → 209）**：[I] 记账内核 `ledger.py` 兑现 spend 承诺（顺带修 `guilin-spend.html` ¥3,700→¥3,400 真 bug）；[J] 行为回放 `cases.json`+`replay.py` 不判分只留痕 | 记账内核 + 回放用例 + 回归脚本 | 0（6 处故障注入各 exit 1 且准确命中 → 还原 exit 0） | 本轮 |
 
 > 新增一行时照抄表头格式；「未通过的检查点」写编号或原句，方便 grep。
 > 静态全绿只代表**结构、算术、基准完整性**没退化；行为与视觉对照仍按上面人工流程跑。
