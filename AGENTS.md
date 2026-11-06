@@ -27,7 +27,7 @@ cd C:/ai && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py            # 打印
 cd C:/ai && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --report   # 落盘 report.md
 ```
 
-退出码 `0` = 全绿，`1` = 有 FAIL。当前基线 **PASS 161 / FAIL 0**。
+退出码 `0` = 全绿，`1` = 有 FAIL。当前基线 **PASS 182 / FAIL 0**。
 CI（`.github/workflows/regress.yml`）在每次 push / PR 上自动跑同一条命令，纯标准库、不联网。
 
 ## 3. 硬边界（别越线，也别假装做到了）

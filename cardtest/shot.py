@@ -8,7 +8,9 @@ html = os.path.abspath(sys.argv[1])
 out = os.path.abspath(sys.argv[2])
 W = int(sys.argv[3]) if len(sys.argv) > 3 else 1080
 scale = 2
-H = 4000
+# 第 4 个参数可覆盖渲染高度；内容超过 4000 CSS px 时必须调大，
+# 否则 --screenshot 会把页脚裁掉（完美攻略卡就栽在这里，且裁白边救不回被截内容）。
+H = int(sys.argv[4]) if len(sys.argv) > 4 else 4000
 
 subprocess.run([EDGE, "--headless=new", "--disable-gpu", "--hide-scrollbars",
                 f"--screenshot={out}", f"--window-size={W},{H}",

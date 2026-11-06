@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>曼谷 4天3夜 · 2人 · 人均3000含机票</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#FBF8F2;color:#1E3A34;font-family:"Microsoft YaHei","PingFang SC",sans-serif;
+     font-feature-settings:"tnum";-webkit-font-smoothing:antialiased}
+.page{width:1080px;background:#FBF8F2;padding:54px 60px 60px}
+.hero{background:#1E3A34;color:#FBF8F2;border-radius:22px;padding:46px 50px 40px;position:relative;overflow:hidden}
+.hero:after{content:"";position:absolute;right:-70px;top:-70px;width:280px;height:280px;
+     border:1px solid rgba(200,155,60,.35);border-radius:50%}
+.kicker{font-size:15px;letter-spacing:3px;color:#C89B3C;font-weight:700}
+.h1{font-size:54px;line-height:1.15;font-weight:800;margin-top:16px;letter-spacing:1px}
+.h1 em{font-style:normal;color:#C89B3C}
+.sub{font-size:18px;color:#CFDCD6;margin-top:16px}
+.herobottom{display:flex;align-items:flex-end;justify-content:space-between;margin-top:34px;
+     border-top:1px solid rgba(255,255,255,.18);padding-top:28px}
+.bigmoney .cur{font-size:34px;color:#C89B3C;vertical-align:top;margin-right:6px}
+.bigmoney .num{font-size:96px;font-weight:800;line-height:1;letter-spacing:-2px}
+.bigmoney .unit{font-size:19px;color:#CFDCD6;margin-left:12px}
+.delta{text-align:right}
+.pill{display:inline-block;background:#C8553D;color:#fff;border-radius:100px;
+     padding:9px 20px;font-size:17px;font-weight:700;margin-bottom:10px}
+.delta .k{font-size:14px;color:#9FB5AC}
+.delta .v{font-size:22px;font-weight:700;color:#FBF8F2}
+
+h2{font-size:25px;margin:44px 0 18px;padding-left:14px;border-left:6px solid #C8553D;letter-spacing:1px}
+.fx{display:flex;align-items:center;background:#1E3A34;color:#FBF8F2;border-radius:14px;
+    padding:18px 26px;margin-top:18px;flex-wrap:wrap}
+.fx .main{font-size:24px;font-weight:800;color:#C89B3C;letter-spacing:1px}
+.fx .sep{width:1px;height:26px;background:rgba(255,255,255,.25);margin:0 22px}
+.fx .item{font-size:16px;color:#CFDCD6}
+.fx .item b{color:#FBF8F2;font-size:19px}
+
+.tiers{display:flex;gap:16px}
+.tier{flex:1;background:#fff;border:2px solid #E6E0D4;border-radius:16px;padding:24px 22px;position:relative}
+.tier.rec{border-color:#1E3A34;box-shadow:0 8px 26px rgba(30,58,52,.13)}
+.tier .tag{position:absolute;top:-13px;left:20px;background:#1E3A34;color:#fff;
+     font-size:13px;font-weight:700;padding:5px 14px;border-radius:100px;letter-spacing:1px}
+.tier:not(.rec) .tag{background:#9FB5AC}
+.tier .name{font-size:21px;font-weight:800;margin-bottom:4px}
+.tier .price{font-size:38px;font-weight:800;color:#C8553D;line-height:1.1;margin:8px 0 2px}
+.tier .per{font-size:15px;color:#6A7C75;margin-bottom:14px}
+.tier ul{list-style:none;font-size:15px;line-height:1.85;color:#3A4E47}
+.tier li:before{content:"·";color:#C89B3C;font-weight:800;margin-right:8px}
+.tier .fit{margin-top:14px;background:#F3F0E8;border-radius:9px;padding:10px 12px;
+     font-size:14px;color:#5B6B64;line-height:1.6}
+
+.stack{background:#fff;border-radius:16px;padding:26px 28px;border:1px solid #E6E0D4}
+.bar{display:flex;height:38px;border-radius:9px;overflow:hidden;margin:6px 0 20px;font-size:13px;
+     font-weight:700;color:#fff;text-align:center;line-height:38px}
+.bar span{white-space:nowrap;overflow:hidden}
+.b1{background:#1E3A34}.b2{background:#5B7C99}.b3{background:#C89B3C}.b4{background:#C8553D}
+.b5{background:#9FB5AC}.b6{background:#B08968}
+.lg{display:flex;flex-wrap:wrap;gap:10px 22px;font-size:15px;color:#3A4E47}
+.lg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:7px;vertical-align:-1px}
+.total{display:flex;justify-content:space-between;align-items:baseline;margin-top:20px;
+     border-top:2px solid #1E3A34;padding-top:16px;font-size:17px}
+.total b{font-size:30px;color:#C8553D}
+.note{font-size:14px;color:#6A7C75;line-height:1.75;margin-top:14px;background:#F3F0E8;
+     border-radius:9px;padding:13px 16px}
+
+.day{display:flex;gap:20px;background:#fff;border-radius:14px;padding:22px 24px;margin-bottom:14px;
+     border:1px solid #E6E0D4}
+.dayno{flex:0 0 76px;height:76px;border-radius:14px;background:#1E3A34;color:#fff;
+     display:flex;flex-direction:column;align-items:center;justify-content:center}
+.dayno b{font-size:27px;line-height:1}.dayno s{font-size:12px;color:#C89B3C;text-decoration:none;margin-top:4px}
+.daybody{flex:1}
+.daybody h3{font-size:20px;margin-bottom:9px}
+.daybody p{font-size:15px;line-height:1.85;color:#3A4E47}
+.daybody .cost{display:inline-block;margin-top:10px;background:#EAF0F5;color:#2A4F46;
+     border-radius:8px;padding:6px 12px;font-size:14px;font-weight:700}
+.daybody .warn{display:block;margin-top:9px;font-size:14px;color:#A23E2B;line-height:1.6}
+
+.pre{background:#fff;border-radius:14px;padding:22px 26px;border:1px solid #E6E0D4;font-size:15px;line-height:1.95}
+.pre ol{margin-left:20px}.pre li{margin-bottom:8px}
+.pre .flag{color:#A23E2B;font-weight:700}
+
+.exitblock{border-radius:14px;padding:20px 24px;margin-bottom:14px;font-size:16px;line-height:1.9}
+.exitblock h3{font-size:19px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.exitblock .no{display:inline-flex;width:26px;height:26px;border-radius:50%;background:#C8553D;color:#fff;
+    font-size:15px;align-items:center;justify-content:center;font-weight:800;flex:0 0 26px}
+.exitblock.warn{background:#FBEEE9;border:1px solid #EBC9BC;color:#7A3323}
+.exitblock.cream{background:#FBF3E2;border:1px solid #EBDCB8;color:#5A4A2A}
+.exitblock .flag{color:#A23E2B;font-weight:800}
+.exitblock .mono{font-weight:800}
+.foot{margin-top:34px;border-top:1px solid #E6E0D4;padding-top:18px;
+     font-size:13px;color:#8A9891;line-height:1.8}
+</style></head>
+<body><div class="page">
+
+<div class="hero">
+  <div class="kicker">BANGKOK · THAILAND · 4 DAYS 3 NIGHTS</div>
+  <div class="h1">曼谷<br><em>4天3晚</em> · 寺庙+美食+夜市</div>
+  <div class="sub">12/17 周四 – 12/20 周日 &nbsp;·&nbsp; 2 人 1 间 &nbsp;·&nbsp; 深圳往返 &nbsp;·&nbsp; 人均 ¥3,000 含机票</div>
+  <div class="herobottom">
+    <div class="bigmoney"><span class="cur">¥</span><span class="num">3,072</span><span class="unit">/ 人均 · 推荐均衡档</span></div>
+    <div class="delta">
+      <div class="pill">2 人合计 ¥6,144 · 超预算 ¥72/人</div>
+      <div class="k">D3 建兴换水门海南鸡饭（省 ¥120/人）</div><div class="v">→ 人均 ¥2,952，回到预算内</div>
+    </div>
+  </div>
+</div>
+
+<!-- ② 汇率行：比率 + 采集日期 + 时差，单独一块 -->
+<div class="fx">
+  <div class="main">1 CNY ≈ 5.078 THB</div>
+  <div class="sep"></div>
+  <div class="item">采集日期 <b>2026-11-02</b>（ECB 参考价）</div>
+  <div class="sep"></div>
+  <div class="item">¥100 ≈ <b>508 THB</b></div>
+  <div class="sep"></div>
+  <div class="item">时差 <b>-1 小时</b>（曼谷 UTC+7 / 北京 UTC+8）</div>
+</div>
+
+<h2>三档取舍 · 都是 4 天 3 晚</h2>
+<div class="tiers">
+  <div class="tier">
+    <div class="tag">省钱</div>
+    <div class="name">街市慢逛</div>
+    <div class="price">¥2,260</div><div class="per">人均 · 2 人 ¥4,519</div>
+    <ul><li>廉航/红眼，机票 ¥2,400/2人</li><li>Asok 经济酒店 ¥260/间/晚</li><li>街边小吃 + 海南鸡饭为主</li><li>免费寺庙 + 恰图恰周末市场</li><li>BTS 单程票，不办卡</li></ul>
+    <div class="fit">适合：把预算压到最低、不赶场</div>
+  </div>
+  <div class="tier rec">
+    <div class="tag">推荐 · 均衡</div>
+    <div class="name">经典一次走完</div>
+    <div class="price">¥3,072</div><div class="per">人均 · 2 人 ¥6,144</div>
+    <ul><li>直飞 + ARL 机场快线</li><li>舒适酒店 ¥400/间/晚 × 3</li><li>大皇宫 + 卧佛寺 + 郑王庙</li><li>恰图恰 + Siam + 建兴酒家一顿</li><li>BTS 用 Rabbit 卡</li></ul>
+    <div class="fit">适合：第一次来、寺庙美食夜市都要</div>
+  </div>
+  <div class="tier">
+    <div class="tag">深度</div>
+    <div class="name">项目拉满</div>
+    <div class="price">¥4,602</div><div class="per">人均 · 2 人 ¥9,204</div>
+    <ul><li>更好酒店 + 私人包车</li><li>米其林/建兴 + 泰式按摩</li><li>全部门票 + 湄南河游船</li><li>门票口径 2,400 THB</li></ul>
+    <div class="fit">适合：预算可加、想省心舒适</div>
+  </div>
+</div>
+
+<h2>推荐档预算明细（2 人合计）</h2>
+<div class="stack">
+  <!-- 6 项里后 3 项占比都 <7%，字面挤在一起会重叠压字；合并成「其他 744」，
+       逐项金额仍在下方图例里列全（394+315+35=744，3000+1200+1200+744=6144）。 -->
+  <div class="bar">
+    <span class="b1" style="width:48.8%">机票 3,000</span>
+    <span class="b2" style="width:19.5%">住宿 1,200</span>
+    <span class="b3" style="width:19.5%">餐饮 1,200</span>
+    <span class="b4" style="width:12.2%">其他 744</span>
+  </div>
+  <div class="lg">
+    <span><i class="b1"></i>往返机票 3,000（人均 1,500 估算）</span>
+    <span><i class="b2"></i>住宿 1,200（¥400/<b>间</b>/晚 × 3，不是每人）</span>
+    <span><i class="b3"></i>餐饮 1,200（¥150/人/天 × 4 × 2）</span>
+    <span><i class="b4"></i>门票 394（2,000 THB）</span>
+    <span><i class="b5"></i>市内交通 315（1,600 THB）</span>
+    <span><i class="b6"></i>机场快线 35（180 THB）</span>
+  </div>
+  <div class="total"><span>分项相加（先按元取整，再求和）</span><span><b>¥6,144</b> ÷ 2 = 人均 ¥3,072</span></div>
+  <div class="note">取整口径：分项按 THB→CNY 换算后先四舍五入到元，合计 = 取整后分项相加（6,144）。
+    若用未取整的精确值求和会得 6,144.x，那不是加总错。人均 ¥3,072 超预算 ¥72/人，
+    把 D3 建兴酒家换成水门市场海南鸡饭省约 ¥120/人 → 人均 ¥2,952。</div>
+</div>
+
+<h2>逐日行程（当地时间；金额见预算表，此处不列）</h2>
+<div class="day">
+  <div class="dayno"><b>D1</b><s>周四</s></div>
+  <div class="daybody"><h3>抵达 · 换钱 · Asok</h3>
+    <p>深圳 SZX → 曼谷 BKK 直飞；落地把表拨回 1 小时（曼谷时间）。ARL 机场快线素万那普→Phaya Thai 45 THB / 约 30 分钟。SuperRich 换泰铢（比机场柜台好 3–5%）。Asok 一带晚餐。</p>
+    <span class="warn">时差 -1 小时：返程航班时刻是曼谷当地时间，别按北京时间推算。</span></div>
+</div>
+<div class="day">
+  <div class="dayno"><b>D2</b><s>周五</s></div>
+  <div class="daybody"><h3>老城寺庙一线</h3>
+    <p>大皇宫 + 玉佛寺 500 THB（08:30–16:30，售票至 15:30，<b>着装遮肩过膝</b>）→ 卧佛寺 300 THB → Tha Tien 码头渡船 5 THB 过河 → 郑王庙 200 THB → 唐人街夜市。</p>
+    <span class="cost">门票合计约 1,005 THB / 人</span></div>
+</div>
+<div class="day">
+  <div class="dayno"><b>D3</b><s>周六</s></div>
+  <div class="daybody"><h3>恰图恰 · Siam · 海鲜</h3>
+    <p>恰图恰周末市场（<b>只有周六/周日开</b>，安排在周六正好）→ Siam 商圈 → 建兴酒家（人均约 1,000 THB + 10% 服务费）。</p>
+    <span class="warn">预算吃紧就把建兴换成水门市场海南鸡饭，省约 ¥120/人 → 整趟人均 ¥2,952。</span></div>
+</div>
+<div class="day">
+  <div class="dayno"><b>D4</b><s>周日</s></div>
+  <div class="daybody"><h3>四面佛 · 返程</h3>
+    <p>上午四面佛 + 最后采购；ARL 返素万那普机场；飞深圳。免签停留 4 天，远在单次 ≤30 天之内。</p>
+    <span class="cost">ARL 45 THB / 人 · 约 30 分钟</span></div>
+</div>
+
+<h2>出发前必做（按截止日）</h2>
+<div class="pre">
+  <ol>
+    <li><span class="flag">③ 入境登记 TDAC（有时间窗）</span>：2025-05-01 起强制、官网 <b>tdac.immigration.go.th</b> <b>免费</b>。
+      只能在<b>入境前 72 小时内</b>填——12/17 落地，<b>12/14 之后才能填</b>，填早系统不认；
+      代办收费的都是钓鱼站。纸质 TM6 已取消。</li>
+    <li>护照有效期需到 <b>2027-06 以后</b>；中泰互免 2024-03-01 生效，单次 ≤30 天 / 180 日累计 ≤90 天。</li>
+    <li>现在订 12/17–12/20 住宿（3 晚 ¥400/间/晚）与往返机票（人均 ¥1,500 估算，以购票当天为准）。</li>
+    <li>备 12 月凉季 22–31°C 轻薄衣物 + 一条进寺庙的长裤/披肩；出发前用真实天气替换这段气候常态。</li>
+  </ol>
+</div>
+
+<!-- ④ 现金/证件门槛：单独一行，写清「只认现金」 -->
+<div class="exitblock cream">
+  <h3><span class="no">④</span>现金 / 证件门槛（门槛值 ≠ 预计消费）</h3>
+  免签入境<b>随机抽查</b>：每人 <span class="mono">20,000 THB</span>（约 <span class="mono">¥3,939</span>）、
+  两人共带 40,000 THB。<span class="flag">只认现金</span>——不认信用卡、不认手机截图、不认理财账户。
+  这是<b>能出示的门槛</b>，不是这趟要花掉的钱，别把它算进日均消费。
+</div>
+
+<!-- ⑤ 不适用游客的政策陷阱：单独一行 -->
+<div class="exitblock warn">
+  <h3><span class="no">⑤</span>不适用游客的政策陷阱</h3>
+  ⚠️ <b>「20 泰铢全线统一票价」游客不适用</b>：该政策 2025-10-01 起覆盖 8 线 194 站约 277 km，
+  但<b>仅限持 13 位泰国身份证的泰国公民</b>在政府 App 注册，游客与长期居留外国人均排除。
+  游客实付 BTS 17–65 THB/程、MRT 按距离、ARL 45 THB/30min。看到「大优惠」先问<b>「谁有资格」</b>。
+</div>
+
+<div class="foot">
+  <div><b>数据来源</b>：中泰互免（外交部）/ TDAC（tdac.immigration.go.th）/ 汇率 ECB 2026-11-02（1 CNY = 5.078 THB）/
+    景区门票官网 / 携程与 trip.com 指南 · <b>查询日期 2026-11-03</b>。</div>
+  <div><b>误差说明</b>：机票、住宿、历史人均为估算或挂牌快照（±20%），门票与票价以购票当天为准；
+    THB→CNY 按 5.078 取整；12 月天气为气候常态·非实时预报。免登录 SSR 房价为城市级快照，非可下单承诺价。</div>
+  <div>行旅 · Travel Agent 出境卡样板 ｜ kicker 4 DAYS 3 NIGHTS = 4 天 3 晚 ｜ 数字与 examples/bangkok-example.md 一致</div>
+</div>
+
+</div></body></html>

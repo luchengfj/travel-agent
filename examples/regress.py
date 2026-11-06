@@ -9,7 +9,7 @@ regress.py — 旅行 Agent 提示词 / 回归基准 的一次性自检脚本
     "$PY" examples/regress.py --report     # 同时落盘 report.md
     "$PY" examples/regress.py --emit-prompt # 打印「喂给 Agent 的复现指令」后退出
 
-它验七件事，缺一不可：
+它验八件事，缺一不可：
   [A] 结构 : travel-agent.md 的必需章节、硬规则关键词、7 张图卡规格都在
   [B] 数字 : 四份样例里的分项/合计/人均/换算，用 Python 重算一遍（基准自己也会算错）
   [C] 基准 : 四份样例的检查点、历史翻车点、已知 bug 记录仍在；并检测已修 bug 复发
@@ -17,6 +17,7 @@ regress.py — 旅行 Agent 提示词 / 回归基准 的一次性自检脚本
   [E] 事实 : 易过期事实台账 facts.json 每条 claim 仍在声明的文件里，且 verified_on / source_url 齐全、未过期
   [F] 卡片 : 全部入库 HTML 卡的基础色板、DOCTYPE、编码、品牌名、kicker 天数关系（DAYS = NIGHTS + 1）
   [G] 快照 : 价格 JSON 有采集时间、rows 可解析，且统计值与提示词里的声明一致
+  [H] 出境卡 : travel-agent.md:396-401 规定的 5 个固定附加块真的出现在渲染卡 bangkok.html 上
 
 脚本只做「静态 + 算术」检查，不调用 LLM、不渲染图卡。
 逐轮喂给 Agent 的**行为对照**仍按 README.md「怎么跑一次回归」人工/半自动完成，
@@ -315,6 +316,23 @@ CLEAN_FILES = {
         "present": [],
         "min_count": [],
     },
+    # 2026-11-06 纳入：境外（曼谷）卡。此前出境卡 5 固定附加块只写在提示词里、
+    # 没有任何渲染卡、也没有断言验附加块真的在卡上 —— 规格写了产物没跟上。
+    # 这里只放「错值必须缺席」（由 [D] 的 SELFTEST 做活体测试）；
+    # 5 个「必须出现的附加块」由 [H] 单独按语义分组校验，避免两边重复计数。
+    "cardtest/bangkok.html": {
+        "label": "境外（曼谷）卡 · 出境附加块样板",
+        "absent": [
+            (r"3 DAYS 3 NIGHTS", "kicker 天数写成 3 天 3 晚（应为 4 DAYS 3 NIGHTS）"),
+            (r"提前 72 小时以上填|72 小时以上.{0,8}填", "要求提前 72 小时以上填 TDAC（填早系统不认）"),
+            (r"20 泰铢.{0,25}游客.{0,8}(也能|同样|均可|可享|都享|福利)|游客.{0,8}(也能|同样|可享).{0,25}20 泰铢",
+             "把 20 泰铢国民票价写成游客也能享受（谁有资格陷阱）"),
+            (r"20,000 THB.{0,15}(计入|算进).{0,10}(预算|消费)|把.{0,10}20,000 THB.{0,10}(计入|算进)",
+             "把现金抽查门槛 20,000 THB 混进预计消费额（门槛值≠消费值）"),
+        ],
+        "present": [],
+        "min_count": [],
+    },
 }
 
 # 基准文件必须保留的「bug 记录区」——删掉这些节 = 基准失去教学价值，判退化
@@ -366,6 +384,14 @@ SELFTEST = {
         (r"9,205|9205", "深度档 9205"),
         (r"¥2,950|2950", "处置后人均 ¥2,950"),
     ],
+    "cardtest/bangkok.html": [
+        (r"3 DAYS 3 NIGHTS", "BANGKOK · 3 DAYS 3 NIGHTS"),
+        (r"提前 72 小时以上填|72 小时以上.{0,8}填", "请提前 72 小时以上填 TDAC"),
+        (r"20 泰铢.{0,25}游客.{0,8}(也能|同样|均可|可享|都享|福利)|游客.{0,8}(也能|同样|可享).{0,25}20 泰铢",
+         "20 泰铢全线统一票价，游客也能享受"),
+        (r"20,000 THB.{0,15}(计入|算进).{0,10}(预算|消费)|把.{0,10}20,000 THB.{0,10}(计入|算进)",
+         "把 20,000 THB 计入消费预算"),
+    ],
 }
 
 
@@ -395,7 +421,7 @@ def check_self():
     check(len(DOC_RECORD_SECTIONS) == 4, "自检·配置",
           "DOC_RECORD_SECTIONS 4 份齐全",
           "DOC_RECORD_SECTIONS 只剩 %d 份" % len(DOC_RECORD_SECTIONS))
-    check(len(CLEAN_FILES) == 3, "自检·配置", "CLEAN_FILES 3 个交付物齐全",
+    check(len(CLEAN_FILES) == 4, "自检·配置", "CLEAN_FILES 4 个交付物齐全",
           "CLEAN_FILES 只剩 %d 个" % len(CLEAN_FILES))
 
     # 每个干净交付物：文件真实存在，且确实配了断言（别出现「加了文件忘了配」）
@@ -651,6 +677,54 @@ def check_snapshots():
 
 
 # ==========================================================================
+# [H] 出境卡：5 个固定附加块真的出现在渲染卡上
+# ==========================================================================
+# 设计理由：travel-agent.md:396-401 规定「出境卡固定附加块」5 项，但此前
+# cardtest/ 里没有任何境外卡，回归只在提示词文本里 grep 这几个关键词
+# （check_prompt 的 A4），从没验过「附加块真的落在一张渲染卡上」——
+# 规格写了、产物没跟上，是 m03520 盘点出的第二处真缺口。
+# 分工：这里逐块验「必须出现的语义」(present)；「错值必须缺席」放在
+# CLEAN_FILES 的 cardtest/bangkok.html 里，由 [D] 的 SELFTEST 做活体测试。
+# 所有文本都是纯字面量、不含正则反斜杠，避开早先 edit 改写 \\s 的坑。
+EXIT_CARD = {
+    "file": "cardtest/bangkok.html",
+    "baseline": "examples/bangkok-example.md",
+    "blocks": [
+        ("① kicker 天数与「X 天 Y 晚」一致", ["4 DAYS 3 NIGHTS", "4天3晚"]),
+        ("② 汇率行：比率 + 采集日期", ["1 CNY ≈ 5.078 THB", "采集日期", "2026-11-02"]),
+        ("③ 入境登记项 + 时间窗", ["tdac.immigration.go.th", "入境前 72 小时内", "12/14 之后才能填"]),
+        ("④ 现金/证件门槛 + 只认现金", ["20,000 THB", "只认现金", "¥3,939"]),
+        ("⑤ 不适用游客的政策陷阱 + 谁有资格", ["不适用游客", "13 位泰国身份证", "谁有资格"]),
+    ],
+    # 交叉一致：card_needle 用紧贴 DOM 的写法（>数字<），只认「大数字」那一处，
+    # 防止卡里某个备注残留一个 6,144 就让大数字改错也照样全绿（反向验证抓到过）。
+    # base_needle 用松散写法，在基准 md 里找同一个数即可。
+    "cross": [
+        ("3,072", ">3,072<", "3,072"),
+        ("6,144", ">¥6,144<", "6,144"),
+    ],
+}
+
+
+def check_exit_card():
+    t = read(ROOT / EXIT_CARD["file"])
+    if t is None:
+        check(False, "出境卡·文件", "", "%s 不存在" % EXIT_CARD["file"])
+        return
+    for label, needles in EXIT_CARD["blocks"]:
+        miss = [s for s in needles if s not in t]
+        check(not miss, "出境卡·" + label,
+              "%d 项必备文本齐备" % len(needles),
+              "缺：%s" % miss)
+    base = read(ROOT / EXIT_CARD["baseline"])
+    for label, card_needle, base_needle in EXIT_CARD["cross"]:
+        check(base is not None and card_needle in t and base_needle in base,
+              "出境卡·交叉一致·" + label,
+              "大数字「%s」与基准样例一致" % label,
+              "卡里大数字或基准样例缺「%s」（两边数字对不上）" % label)
+
+
+# ==========================================================================
 # 复现输入（脚本不跑 LLM，只把「该喂什么」列清楚）
 # ==========================================================================
 REPRO = [
@@ -690,7 +764,7 @@ def render():
     out.append(f"- 生成时间：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     out.append(f"- 工作目录：`{ROOT}`")
     out.append(f"- 检查对象：`travel-agent.md` + `examples/` 四份基准 + `README.md` + 断言自检"
-               f" + 事实台账 + 卡片静态健全 + 价格快照交叉")
+               f" + 事实台账 + 卡片静态健全 + 价格快照交叉 + 出境卡附加块")
     out.append("")
     n_fail = sum(1 for l, _, _ in RESULTS if l == "FAIL")
     n_pass = sum(1 for l, _, _ in RESULTS if l == "PASS")
@@ -721,7 +795,7 @@ def render():
     out.append("## 脚本没覆盖的部分（仍需人工/半自动）")
     out.append("")
     out.append("本脚本只做**静态结构 + 算术重算 + 基准完整性 + 断言自检 + 事实台账 + "
-               "卡片静态健全 + 价格快照交叉**检查。下面四项必须按 "
+               "卡片静态健全 + 价格快照交叉 + 出境卡附加块**检查。下面四项必须按 "
                "`examples/README.md`「怎么跑一次回归」实际喂给 Agent 对照：")
     out.append("")
     out.append("1. 逐轮**行为输出**是否同构（首行模式标签、≤3 问带默认值、三档内容不同…）")
@@ -758,6 +832,7 @@ def main():
     check_facts()
     check_cards()
     check_snapshots()
+    check_exit_card()
 
     report = render()
     print(report)
