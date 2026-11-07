@@ -27,8 +27,8 @@
 ## 2. 改完必须跑
 
 ```
-cd C:/ai && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py            # 打印报告
-cd C:/ai && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --report   # 落盘 report.md
+cd C:/ai/agent && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py            # 打印报告
+cd C:/ai/agent && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --report   # 落盘 report.md
 ```
 
 退出码 `0` = 全绿，`1` = 有 FAIL。当前基线 **PASS 229 / FAIL 0**。

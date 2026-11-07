@@ -1,6 +1,6 @@
 # examples/ · 回归基准使用说明
 
-这个目录放的是**提示词的验收样例**。改完 `C:\ai\travel-agent.md` 之后，用它们跑一遍，
+这个目录放的是**提示词的验收样例**。改完 `C:\ai\agent\travel-agent.md` 之后，用它们跑一遍，
 确认 Agent 的行为没退化。不是给人看的示例输出，是**给下一次改提示词的自己看的对照表**。
 
 ## 目录
@@ -24,7 +24,7 @@
 
 ```bash
 PY="C:/Users/cheng/.dsh/dsh-runtimes/dsh-next-primary-runtime/dependencies/python/python.exe"
-cd C:/ai && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py
+cd C:/ai/agent && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py
 # 落盘报告：  ... examples/regress.py --report
 # 只打印「该喂什么给 Agent」： ... examples/regress.py --emit-prompt
 ```

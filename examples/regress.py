@@ -3,7 +3,7 @@
 """
 regress.py — 旅行 Agent 提示词 / 回归基准 的一次性自检脚本
 
-用法（在 C:\\ai 下，bash 里 python 不在 PATH，用运行时自带 Python）：
+用法（在 C:\\ai\\agent 下，bash 里 python 不在 PATH，用运行时自带 Python）：
     PY="C:/Users/cheng/.dsh/dsh-runtimes/dsh-next-primary-runtime/dependencies/python/python.exe"
     "$PY" examples/regress.py              # 打印报告
     "$PY" examples/regress.py --report     # 同时落盘 report.md
@@ -35,7 +35,7 @@ import sys
 import datetime
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent      # C:\ai
+ROOT = Path(__file__).resolve().parent.parent      # C:\ai\agent
 EX = ROOT / "examples"
 PROMPT = ROOT / "travel-agent.md"
 

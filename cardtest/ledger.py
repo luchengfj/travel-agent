@@ -18,7 +18,7 @@ ledger.py — spend / review 模式的「消费记账」内核 + 图卡生成器
   · render_spend() 用 compute() 的结果生成完整 spend 卡 HTML；空账本 = 空白模板态，
     所有「已花」为 0、流水表显示「暂无记录」——绝不填假数字。
 
-命令（在 C:\\ai 下用运行时自带 Python，见 AGENTS.md）：
+命令（在 C:\\ai\\agent 下用运行时自带 Python，见 AGENTS.md）：
     "$PY" cardtest/ledger.py init                 # 建空账本 cardtest/ledger-data.json
     "$PY" cardtest/ledger.py add --amount 150 --item 啤酒鱼 --category 餐饮 --pay 微信 --time "12/1 19:20"
     "$PY" cardtest/ledger.py show                # 打印账本 JSON

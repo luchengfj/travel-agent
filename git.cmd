@@ -12,6 +12,8 @@ rem
 rem Resolution order (no hardcoded drive/path):
 rem   1. .tools\Git\cmd\git.exe next to this script  -> use it, put its
 rem      toolchain on PATH, AND force Windows native OpenSSH (see below).
+rem      The project now lives in C:\ai\agent\, so .tools\Git is one level
+rem      UP in the parent directory; fall back to %~dp0..\.tools\Git.
 rem   2. otherwise -> call "git.exe %*" from PATH (system install); use the
 rem      explicit .exe extension, NOT bare "git": PATHEXT would otherwise
 rem      resolve bare "git" back to THIS git.cmd in the current directory
@@ -32,6 +34,7 @@ rem Usage (cmd.exe):     git.cmd status
 rem ------------------------------------------------------------------
 setlocal
 set "GITROOT=%~dp0.tools\Git"
+if not exist "%GITROOT%\cmd\git.exe" set "GITROOT=%~dp0..\.tools\Git"
 set "GITEXE=%GITROOT%\cmd\git.exe"
 if exist "%GITEXE%" (
     set "PATH=%GITROOT%\cmd;%GITROOT%\bin;%GITROOT%\usr\bin;%GITROOT%\mingw64\bin;%PATH%"

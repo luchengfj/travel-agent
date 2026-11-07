@@ -146,7 +146,7 @@
 
 # 五种图卡的结构规格（每种固定，别临场发挥）
 五张卡共用一套视觉语言（同一色板、同一头部渐变、同一页脚格式），但**结构各不相同**。
-下面每张都已在实机上渲染验证过，参考实现见 `C:\ai\cardtest\{plan,deal,prep,ontrip,review}.html`。
+下面每张都已在实机上渲染验证过，参考实现见 `C:\ai\agent\cardtest\{plan,deal,prep,ontrip,review}.html`。
 
 ## plan · 行程总览卡
 头：目的地 + 天数 + 大数字（人均） + 「超/省 X 元」胶囊
@@ -303,7 +303,7 @@
 - **解析要点**：HTML 里 JSON 被双层转义，先 `html.replace('\\"','"')`；按 `"hotelId":"` 切块，
   每块取 `"displayPrice"`（每晚单价）、`"priceExplanation"` 的 `Total price: ...`（N 晚合计，含税费）、
   `"enName"`（店名，部分记录 SSR 不给）、`"physicsName"`（房型）。
-- **已落地脚本**：`C:\ai\cardtest\hotel_price.py`，
+- **已落地脚本**：`C:\ai\agent\cardtest\hotel_price.py`，
   命令 `python hotel_price.py --city 33 --checkin 2026-12-01 --checkout 2026-12-03 --curr CNY --json out.json`。
   实测（桂林 city=33，12/1–12/3，2 人 1 间）：12 条记录，每晚 ¥110–952，中位 ¥332，
   含 NEO ISLE / FourPoints by Sheraton / Shangri-La Guilin / GUILIN CENTRAL PALACE 等。
@@ -346,7 +346,7 @@
   （Linux/macOS 换 chromium/chrome，参数一样）
 - 关键参数：`--headless=new --hide-scrollbars --force-device-scale-factor=2`
   （2 倍图保证在高分屏和微信里不发虚）
-- 参考脚本：`C:\ai\cardtest\shot.py`（渲染 + 自动裁白边）
+- 参考脚本：`C:\ai\agent\cardtest\shot.py`（渲染 + 自动裁白边）
 
 ## 图卡规格（固定，别每张换风格）
 - 逻辑宽度 1080px，高度自适应内容，输出 2 倍图（2160px 宽）

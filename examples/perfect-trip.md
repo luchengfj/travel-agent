@@ -160,7 +160,7 @@ D1 ¥957 + D2 ¥790 + D3 ¥1,011 = **¥2,758** ✓
 ## 7. 复现与验算
 
 ```bash
-cd C:/ai
+cd C:/ai/agent
 PY="C:/Users/cheng/.dsh/dsh-runtimes/dsh-next-primary-runtime/dependencies/python/python.exe"
 # 重拉实时房价（改日期就把 checkin/checkout 一起改）
 PYTHONIOENCODING=utf-8 "$PY" cardtest/hotel_price.py --city 871 --zone 4532 \

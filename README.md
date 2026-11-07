@@ -66,7 +66,7 @@
 
 ### 2. 验「改完没退化」
 ```bash
-cd C:/ai
+cd C:/ai/agent
 PY="C:/Users/cheng/.dsh/dsh-runtimes/dsh-next-primary-runtime/dependencies/python/python.exe"
 PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --report
 ```
@@ -84,13 +84,13 @@ PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --report
 
 ### 3. 渲一张卡
 ```bash
-cd C:/ai/cardtest
-"$PY" shot.py guilin3d2n.html "C:/ai/cardtest/guilin3d2n.png" 1080
+cd C:/ai/agent/cardtest
+"$PY" shot.py guilin3d2n.html "C:/ai/agent/cardtest/guilin3d2n.png" 1080
 ```
 
 ### 4. 查实时房价（免登录、免账号、不撞 2FA）
 ```bash
-cd C:/ai/cardtest
+cd C:/ai/agent/cardtest
 "$PY" hotel_price.py --city 871 --zone 4532 \
   --checkin 2026-12-01 --checkout 2026-12-03 --curr CNY --json out.json
 ```

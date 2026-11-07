@@ -1,6 +1,6 @@
 # 「行旅」旅行 Agent 全解析
 
-> 解析对象：`C:\ai\travel-agent.md`（460 行）及其配套的文件体系、渲染器、回归基准。
+> 解析对象：`C:\ai\agent\travel-agent.md`（460 行）及其配套的文件体系、渲染器、回归基准。
 > 解析日期：2026-11-04。本文是「这套东西到底是怎么长出来的、每条规定为什么存在、怎么验证它没坏」的可查手册。
 > 一句话概括：**它不是一段提示词，而是一套「提示词 + 渲染器 + 回归测试」的小型软件系统**——用真实翻车事故反推出规则，再用脚本把规则固化成可重跑的断言。
 
@@ -254,7 +254,7 @@
 
 ---
 
-## 4. 文件体系全清单（C:\ai）
+## 4. 文件体系全清单（C:\ai\agent）
 
 ### 4.1 核心
 | 文件 | 行数/大小 | 说明 |
@@ -281,7 +281,7 @@
 
 检查点合计 **63 条**（17+18+9+19）。
 
-> 注：`C:\ai` 下另有 `Freedeck_issues_and_fixes.md`、`build_defense_pptx.py`、`_idx.json`、`fetch_cjs.py` 等文件，与本项目无关，是本工作区里其他任务留下的。
+> 注：本仓库已整体搬入 `C:\ai\agent`，与父目录 `C:\ai` 下的其他任务（Freedeck / qq-bot / comfyui / 答辩稿 等）物理分离；父目录里那些无关文件不再与本仓库同处一个工作树。
 
 ---
 
@@ -350,7 +350,7 @@ exit 1；字节级还原 → exit 0。这样连「防复发断言被改坏」这
 
 ### 5.5 命令与退出码
 ```bash
-cd C:/ai
+cd C:/ai/agent
 PY="C:/Users/cheng/.dsh/dsh-runtimes/dsh-next-primary-runtime/dependencies/python/python.exe"
 PYTHONIOENCODING=utf-8 "$PY" examples/regress.py            # 打印报告
 PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --report    # 落盘 report.md
@@ -450,21 +450,21 @@ PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --emit-prompt  # 打印复现�
 
 ### 8.2 改完提示词怎么验
 ```bash
-cd C:/ai && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --report
+cd C:/ai/agent && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --report
 ```
 看退出码和 `report.md`。全绿只说明**结构 + 算术 + 基准完整性**没退化；逐轮行为、图卡渲染、实时数据仍要按 README 人工对照。
 
 ### 8.3 渲染一张新卡
 ```bash
-cd C:/ai/cardtest
+cd C:/ai/agent/cardtest
 "$PY" shot.py <你的.html> "<绝对路径>/out.png" 1080
-# 再用 Python shutil.copy 复制到 C:\ai\ 根目录交付
+# 再用 Python shutil.copy 复制到 C:\ai\agent\ 根目录交付
 ```
 改完必须自检：有视觉能力就 `read_image` 逐字看，没有就做尺寸/内容/溢出三项 + 如实声明。
 
 ### 8.4 查实时房价
 ```bash
-cd C:/ai/cardtest
+cd C:/ai/agent/cardtest
 "$PY" hotel_price.py --city 871 --zone 4532 \
   --checkin 2026-12-01 --checkout 2026-12-03 --curr CNY \
   --json yangshuo-weststreet-prices-20261201.json

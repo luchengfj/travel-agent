@@ -15,7 +15,7 @@ replay.py — 行为回放「不判分只留痕」操作骨架
 自动判分只会制造假 FAIL。行为对照的判定权在人眼，标准见 examples/README.md
 「判定标准」四类（硬事实 / 口径 / 结构 / 文风）。
 
-命令（在 C:\\ai 下用运行时自带 Python，见 AGENTS.md）：
+命令（在 C:\\ai\\agent 下用运行时自带 Python，见 AGENTS.md）：
     "$PY" examples/replay.py list
     "$PY" examples/replay.py prompt guilin-plan
     "$PY" examples/replay.py trace guilin-plan --out _replay-guilin.md --answer r1.txt --answer r2.txt --answer r3.txt
@@ -37,8 +37,8 @@ try:
 except Exception:
     pass
 
-EX = Path(__file__).resolve().parent               # C:\ai\examples
-ROOT = EX.parent                                    # C:\ai（cases.json 的 source 从仓库根算）
+EX = Path(__file__).resolve().parent               # C:\ai\agent\examples
+ROOT = EX.parent                                    # C:\ai\agent（cases.json 的 source 从仓库根算）
 CASES = EX / "cases.json"
 
 
