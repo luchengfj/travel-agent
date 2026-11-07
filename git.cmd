@@ -12,8 +12,11 @@ rem
 rem Resolution order (no hardcoded drive/path):
 rem   1. .tools\Git\cmd\git.exe next to this script  -> use it, put its
 rem      toolchain on PATH, AND force Windows native OpenSSH (see below).
-rem   2. otherwise -> plain "git %*" from PATH (system install); this
-rem      branch deliberately does NOT touch any GIT_SSH* variables.
+rem   2. otherwise -> call "git.exe %*" from PATH (system install); use the
+rem      explicit .exe extension, NOT bare "git": PATHEXT would otherwise
+rem      resolve bare "git" back to THIS git.cmd in the current directory
+rem      and recurse until "Maximum setlocal recursion level reached".
+rem      This branch deliberately does NOT touch any GIT_SSH* variables.
 rem
 rem SSH fix (important, learned the hard way):
 rem   PortableGit's bundled Cygwin ssh.exe / sh.exe cannot create a
@@ -38,7 +41,7 @@ if exist "%GITEXE%" (
     )
     "%GITEXE%" %*
 ) else (
-    git %*
+    git.exe %*
 )
 set "RC=%ERRORLEVEL%"
 endlocal & exit /b %RC%
