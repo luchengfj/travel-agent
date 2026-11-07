@@ -20,6 +20,7 @@
 !/AGENT-解析.md
 !/hangzhou-5d-budget.md
 !/*.png
+!/git.cmd
 
 # ── cardtest/ 放行 ──
 !/cardtest/*.py

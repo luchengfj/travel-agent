@@ -59,3 +59,8 @@ CI（`.github/workflows/regress.yml`）在每次 push / PR 上自动跑同一条
 
 `origin` 已设为 SSH：`git@github.com:luchengfj/travel-agent.git`（需已授权的
 `~/.ssh/id_ed25519_github`）。`git push` 即可；HTTPS + PAT 那条路本机 GCM 里已无凭据，别再绕。
+
+本机 Git 装在 `C:\ai\.tools\Git\cmd\git.exe`，用户级 PATH 已持久化——**新开的终端 /
+重新登录后**直接敲 `git` 就生效。但当前 DSH 会话的宿主进程启动于改注册表之前，
+环境块是旧的，裸 `git` 仍找不到；此时用 `git.cmd`（`& .\git.cmd status`）或绝对路径。
+`git.cmd` 会优先用 `.tools\Git`，没有则回退系统 `git`，不写死盘符，克隆仓库的人也能用。
