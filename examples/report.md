@@ -1,10 +1,10 @@
 # 旅行 Agent 回归报告
 
-- 生成时间：2026-11-07 01:46:27
+- 生成时间：2026-11-07 19:04:15
 - 工作目录：`C:\ai`
-- 检查对象：`travel-agent.md` + `examples/` 四份基准 + `README.md` + 断言自检 + 事实台账 + 卡片静态健全 + 价格快照交叉 + 出境卡附加块 + 记账内核 + 行为回放用例
+- 检查对象：`travel-agent.md` + `examples/` 四份基准 + `README.md` + 断言自检 + 事实台账 + 卡片静态健全 + 价格快照交叉 + 出境卡附加块 + 记账内核 + 行为回放用例 + 应用一致性(PWA/Worker)
 
-**结论：✅ 全绿，未发现退化**（PASS 209 / FAIL 0 / INFO 2）
+**结论：✅ 全绿，未发现退化**（PASS 229 / FAIL 0 / INFO 2）
 
 | 状态 | 检查项 | 结果 |
 |---|---|---|
@@ -219,10 +219,30 @@
 | PASS | `回放·用例字段` | 每个用例都有 intent/turns/watch/hard_facts |
 | PASS | `回放·不判分原则` | 台账明说「不判分只留痕」（不制造假 FAIL） |
 | PASS | `回放·操作卡` | replay.py 提供 list/prompt/trace，且明说不判分 |
+| PASS | `应用·提示词同步·逐字节` | worker/src/prompt.js 与 travel-agent.md 逐字节一致 |
+| PASS | `应用·builder` | build-system-prompt.mjs 引用 travel-agent.md → prompt.js |
+| PASS | `应用·wrangler·变量` | LLM_BASE_URL / LLM_MODEL / ALLOWED_ORIGIN 三个非敏感变量在场 |
+| PASS | `应用·wrangler·密钥隔离` | LLM_API_KEY 未写进 wrangler.toml（只走 wrangler secret） |
+| PASS | `应用·manifest·合法` | manifest.webmanifest 是可解析的合法 JSON |
+| PASS | `应用·manifest·必需键` | name/short_name/start_url/display/icons 必需键齐全 |
+| PASS | `应用·sw·缓存清单` | APP_SHELL 9 项离线外壳齐备 |
+| PASS | `应用·sw·文件存在` | APP_SHELL 指向的文件在磁盘上都存在 |
+| PASS | `应用·sw·API 不缓存` | sw.js 明确把 /api/chat 排除在缓存外（network-only） |
+| PASS | `应用·worker·转发骨架` | 注入 system=PROMPT、拼 /chat/completions、读 env 密钥、清洗 role 的关键字在场 |
+| PASS | `应用·凭据正则·sk` | 正则能命中活体样例（没被改松） |
+| PASS | `应用·凭据正则·ghp` | 正则能命中活体样例（没被改松） |
+| PASS | `应用·凭据正则·github_pat` | 正则能命中活体样例（没被改松） |
+| PASS | `应用·凭据正则·x-access` | 正则能命中活体样例（没被改松） |
+| PASS | `应用·凭据正则·envkey` | 正则能命中活体样例（没被改松） |
+| PASS | `应用·凭据正则·pem` | 正则能命中活体样例（没被改松） |
+| PASS | `应用·运行时文件` | 部署运行时代码/配置文件齐全 |
+| PASS | `应用·凭据·零命中` | 部署运行时代码/配置里 0 个疑似真实密钥形态 |
+| PASS | `应用·图标` | PWA 192/512 图标齐备 |
+| PASS | `应用·样例成品` | Demo 模式的已核实样例 md + PNG 齐备 |
 
 ## 脚本没覆盖的部分（仍需人工/半自动）
 
-本脚本只做**静态结构 + 算术重算 + 基准完整性 + 断言自检 + 事实台账 + 卡片静态健全 + 价格快照交叉 + 出境卡附加块 + 记账内核 + 行为回放用例**检查。下面四项必须按 `examples/README.md`「怎么跑一次回归」实际喂给 Agent 对照：
+本脚本只做**静态结构 + 算术重算 + 基准完整性 + 断言自检 + 事实台账 + 卡片静态健全 + 价格快照交叉 + 出境卡附加块 + 记账内核 + 行为回放用例 + 应用一致性(PWA/Worker 漂移)**检查。下面四项必须按 `examples/README.md`「怎么跑一次回归」实际喂给 Agent 对照：
 
 1. 逐轮**行为输出**是否同构（首行模式标签、≤3 问带默认值、三档内容不同…）
 2. 图卡是否真的渲染出来、尺寸是否正确、有视觉能力时是否逐字目检 kicker/页脚

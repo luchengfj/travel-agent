@@ -9,7 +9,7 @@ regress.py — 旅行 Agent 提示词 / 回归基准 的一次性自检脚本
     "$PY" examples/regress.py --report     # 同时落盘 report.md
     "$PY" examples/regress.py --emit-prompt # 打印「喂给 Agent 的复现指令」后退出
 
-它验十件事，缺一不可：
+它验十一件事，缺一不可：
   [A] 结构 : travel-agent.md 的必需章节、硬规则关键词、7 张图卡规格都在
   [B] 数字 : 四份样例里的分项/合计/人均/换算，用 Python 重算一遍（基准自己也会算错）
   [C] 基准 : 四份样例的检查点、历史翻车点、已知 bug 记录仍在；并检测已修 bug 复发
@@ -20,6 +20,7 @@ regress.py — 旅行 Agent 提示词 / 回归基准 的一次性自检脚本
   [H] 出境卡 : travel-agent.md:396-401 规定的 5 个固定附加块真的出现在渲染卡 bangkok.html 上
   [I] 记账内核 : ledger.py 的 compute/add_entry 兑现 spend 承诺，PLAN 与基准一致，golden 夹具对账，入库卡与生成器同步
   [J] 行为回放 : cases.json 复现用例结构完整、指向存在的基准；replay.py 只留痕不判分
+  [K] 应用一致性 : PWA/Worker 的 prompt.js 与 travel-agent.md 逐字节同步，应用骨架完整、无密钥泄漏
 
 脚本只做「静态 + 算术」检查，不调用 LLM、不渲染图卡。
 逐轮喂给 Agent 的**行为对照**仍按 README.md「怎么跑一次回归」人工/半自动完成，
@@ -895,6 +896,182 @@ def check_replay():
           "replay.py 提供 list/prompt/trace，且明说不判分",
           "replay.py 缺失或丢了 trace 留痕能力")
 
+# ==========================================================================
+# [K] 应用一致性：PWA/Worker 与唯一真值源 travel-agent.md 的漂移检测
+# ==========================================================================
+# 设计理由：把提示词做成可随时调用的手机 PWA 后，worker/src/prompt.js 是
+# travel-agent.md 的「生成副本」。一旦改了提示词却忘了重跑 builder，线上
+# Agent 的行为就与仓库基准脱节 —— 这正是静态回归必须能挡住的退化。
+# 分工：① 皇冠门禁 = prompt.js 内嵌字符串与 travel-agent.md 逐字节一致；
+# ② 应用骨架完整性 = worker/ 与 app/ 关键件齐全、密钥不泄漏、SW 缓存清单
+# 没漏文件、manifest 合法；③ 凭据扫描正则本身用活体样例验证「真的会命中」，
+# 否则「0 命中」可能只是正则被改松后的假绿。
+APP = {
+    "prompt_js": "worker/src/prompt.js",
+    "builder": "tools/build-system-prompt.mjs",
+    "wrangler": "worker/wrangler.toml",
+    "worker_index": "worker/src/index.js",
+    "manifest": "app/manifest.webmanifest",
+    "sw": "app/sw.js",
+    "icons": ["app/icons/icon-192.png", "app/icons/icon-512.png"],
+    "samples": ["app/sample-plan.md", "app/sample-plan-card.png"],
+    "sw_shell": [
+        "./", "./index.html", "./styles.css", "./app.js",
+        "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png",
+        "./sample-plan.md", "./sample-plan-card.png",
+    ],
+    "wrangler_vars": ["LLM_BASE_URL", "LLM_MODEL", "ALLOWED_ORIGIN"],
+    "manifest_keys": ["name", "short_name", "start_url", "display", "icons"],
+}
+
+# 只扫「部署运行时代码/配置」，排除 README / .dev.vars.example / test.mjs
+# 这类合法讨论键名的文档与测试文件。每条 pattern 都配一个活体样例。
+#
+# 活体样例用 _fixture() 运行时拼接，而不是写成一个连续字符串：
+# 否则 "sk-ABCDEF..." 这种字面量会被整仓凭据扫描 / GitHub secret scanning
+# 误报成真泄漏，把「提交前 0 命中」这条硬不变量拖下水。
+# 拼接后仍必须能被各自的正则命中，check_app() 会逐条验活。
+def _fixture(*parts):
+    return "".join(parts)
+
+
+CREDENTIAL_PATTERNS = [
+    ("sk", r"sk-[A-Za-z0-9]{20,}",
+     _fixture("sk-", "ABCDEF09" * 4)),
+    ("ghp", r"ghp_[A-Za-z0-9]{20,}",
+     _fixture("ghp_", "ABCDEF09" * 4)),
+    ("github_pat", r"github_pat_[A-Za-z0-9_]{20,}",
+     _fixture("github_pat_", "ABCDEF_09" * 3)),
+    ("x-access", r"x-access-token:[A-Za-z0-9_]{10,}",
+     _fixture("x-access-token:", "ABCDEF0123456789")),
+    ("envkey", r"LLM_API_KEY[=]\S+",
+     _fixture("LLM_API_KEY", "=", "deadbeef", "secret", "123456")),
+    ("pem", r"BEGIN (RSA |OPENSSH |EC )?PRIVATE KEY",
+     _fixture("BEGIN OPENSSH ", "PRIVATE", " KEY")),
+]
+APP_SCAN_FILES = [
+    "app/index.html", "app/styles.css", "app/app.js",
+    "app/manifest.webmanifest", "app/sw.js",
+    "worker/src/index.js", "worker/src/prompt.js",
+    "worker/wrangler.toml", "tools/build-system-prompt.mjs",
+]
+
+
+def check_app():
+    # ---- ① 皇冠门禁：prompt.js 的内嵌字符串与 travel-agent.md 逐字节一致 ----
+    pj = ROOT / APP["prompt_js"]
+    t = read(pj)
+    if t is None:
+        check(False, "应用·提示词同步", "",
+              "%s 不存在（改了提示词要重跑 node tools/build-system-prompt.mjs）" % APP["prompt_js"])
+    else:
+        m = re.search(r'^export const PROMPT = (".*");$', t, re.M)
+        ok, detail = False, ""
+        if m:
+            try:
+                embedded = json.loads(m.group(1))
+                ok = embedded.encode("utf-8") == PROMPT.read_bytes()
+                if not ok:
+                    detail = "内嵌字符串与 travel-agent.md 不一致（提示词改了没重跑 builder）"
+            except Exception as ex:
+                detail = "内嵌字符串不是合法 JSON 串：%s" % ex
+        else:
+            detail = "找不到单行 `export const PROMPT = \"...\";` 字面量"
+        check(ok, "应用·提示词同步·逐字节",
+              "worker/src/prompt.js 与 travel-agent.md 逐字节一致",
+              detail or "提示词副本与唯一真值源漂移")
+
+    # ---- ② builder 存在且指向「唯一真值源 → 产物」两文件 ----
+    b = read(ROOT / APP["builder"])
+    check(b is not None and "travel-agent.md" in b and "prompt.js" in b,
+          "应用·builder",
+          "build-system-prompt.mjs 引用 travel-agent.md → prompt.js",
+          "builder 缺失或没指向唯一真值源/产物")
+
+    # ---- ③ wrangler：三变量在场、密钥不得写进 [vars] ----
+    w = read(ROOT / APP["wrangler"])
+    vars_ok = w is not None and all(v in w for v in APP["wrangler_vars"])
+    check(vars_ok, "应用·wrangler·变量",
+          "LLM_BASE_URL / LLM_MODEL / ALLOWED_ORIGIN 三个非敏感变量在场",
+          "wrangler.toml 缺变量或整个文件不在")
+    key_in_vars = w is not None and bool(re.search(r"LLM_API_KEY\s*=\s*\S+", w))
+    check(not key_in_vars, "应用·wrangler·密钥隔离",
+          "LLM_API_KEY 未写进 wrangler.toml（只走 wrangler secret）",
+          "wrangler.toml 里出现 LLM_API_KEY= 的字面量赋值 —— 密钥泄漏")
+
+    # ---- ④ manifest 合法 JSON + 必需键 ----
+    mf = read(ROOT / APP["manifest"])
+    manifest_ok, keys_missing = False, list(APP["manifest_keys"])
+    try:
+        d = json.loads(mf)
+        manifest_ok = True
+        keys_missing = [k for k in APP["manifest_keys"] if k not in d]
+    except Exception:
+        pass
+    check(manifest_ok, "应用·manifest·合法",
+          "manifest.webmanifest 是可解析的合法 JSON",
+          "manifest.webmanifest 缺失或不是合法 JSON")
+    check(manifest_ok and not keys_missing, "应用·manifest·必需键",
+          "name/short_name/start_url/display/icons 必需键齐全",
+          "缺必需键：%s" % keys_missing)
+
+    # ---- ⑤ sw.js：缓存清单 9 项齐 + 对应文件真实存在 + /api/chat 不缓存 ----
+    sw = read(ROOT / APP["sw"])
+    shell_miss = [s for s in APP["sw_shell"] if sw is None or ('"' + s + '"') not in sw]
+    check(not shell_miss, "应用·sw·缓存清单",
+          "APP_SHELL 9 项离线外壳齐备",
+          "sw.js 缓存清单缺：%s" % shell_miss)
+    shell_files = [s for s in APP["sw_shell"] if s != "./"]
+    file_miss = [s for s in shell_files if not (ROOT / "app" / s.lstrip("./")).exists()]
+    check(not file_miss, "应用·sw·文件存在",
+          "APP_SHELL 指向的文件在磁盘上都存在",
+          "缓存清单指向不存在的文件：%s" % file_miss)
+    check(sw is not None and "/api/chat" in sw,
+          "应用·sw·API 不缓存",
+          "sw.js 明确把 /api/chat 排除在缓存外（network-only）",
+          "sw.js 没处理 /api/chat，可能伪造聊天响应")
+
+    # ---- ⑥ worker/src/index.js：system 注入 + 转发 + 角色清洗骨架 ----
+    idx = read(ROOT / APP["worker_index"])
+    idx_needles = ["PROMPT", "chat/completions", "LLM_API_KEY", "system", "role"]
+    idx_miss = [s for s in idx_needles if idx is None or s not in idx]
+    check(not idx_miss, "应用·worker·转发骨架",
+          "注入 system=PROMPT、拼 /chat/completions、读 env 密钥、清洗 role 的关键字在场",
+          "worker 转发骨架缺关键字：%s" % idx_miss)
+
+    # ---- ⑦ 凭据正则活体验证 + 部署运行时文件 0 命中 ----
+    for name, pat, sample in CREDENTIAL_PATTERNS:
+        check(has(sample, pat), "应用·凭据正则·" + name,
+              "正则能命中活体样例（没被改松）",
+              "正则永不命中会让「0 命中」变成假绿：" + pat)
+    missing_scan = [rel for rel in APP_SCAN_FILES if not (ROOT / rel).exists()]
+    check(not missing_scan, "应用·运行时文件",
+          "部署运行时代码/配置文件齐全",
+          "缺运行时文件：%s" % missing_scan)
+    hits = []
+    for rel in APP_SCAN_FILES:
+        txt = read(ROOT / rel)
+        if txt is None:
+            continue
+        for name, pat, _ in CREDENTIAL_PATTERNS:
+            if re.search(pat, txt, re.M):
+                hits.append(rel + " :: " + name)
+    check(not hits, "应用·凭据·零命中",
+          "部署运行时代码/配置里 0 个疑似真实密钥形态",
+          "疑似密钥泄漏：" + "; ".join(hits))
+
+    # ---- ⑧ 图标 / ⑨ 已核实样例成品存在 ----
+    icon_miss = [rel for rel in APP["icons"] if not (ROOT / rel).exists()]
+    check(not icon_miss, "应用·图标",
+          "PWA 192/512 图标齐备",
+          "缺图标：%s" % icon_miss)
+    sample_miss = [rel for rel in APP["samples"] if not (ROOT / rel).exists()]
+    check(not sample_miss, "应用·样例成品",
+          "Demo 模式的已核实样例 md + PNG 齐备",
+          "缺样例成品：%s" % sample_miss)
+
+
+
 
 # ==========================================================================
 # 复现输入（脚本不跑 LLM，只把「该喂什么」列清楚）
@@ -937,7 +1114,7 @@ def render():
     out.append(f"- 工作目录：`{ROOT}`")
     out.append(f"- 检查对象：`travel-agent.md` + `examples/` 四份基准 + `README.md` + 断言自检"
                f" + 事实台账 + 卡片静态健全 + 价格快照交叉 + 出境卡附加块"
-               f" + 记账内核 + 行为回放用例")
+               f" + 记账内核 + 行为回放用例 + 应用一致性(PWA/Worker)")
     out.append("")
     n_fail = sum(1 for l, _, _ in RESULTS if l == "FAIL")
     n_pass = sum(1 for l, _, _ in RESULTS if l == "PASS")
@@ -969,7 +1146,7 @@ def render():
     out.append("")
     out.append("本脚本只做**静态结构 + 算术重算 + 基准完整性 + 断言自检 + 事实台账 + "
                "卡片静态健全 + 价格快照交叉 + 出境卡附加块 + 记账内核 + "
-               "行为回放用例**检查。下面四项必须按 "
+               "行为回放用例 + 应用一致性(PWA/Worker 漂移)**检查。下面四项必须按 "
                "`examples/README.md`「怎么跑一次回归」实际喂给 Agent 对照：")
     out.append("")
     out.append("1. 逐轮**行为输出**是否同构（首行模式标签、≤3 问带默认值、三档内容不同…）")
@@ -1009,6 +1186,7 @@ def main():
     check_exit_card()
     check_ledger()
     check_replay()
+    check_app()
 
     report = render()
     print(report)

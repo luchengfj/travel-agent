@@ -33,6 +33,15 @@
 !/examples/*.py
 !/examples/*.json
 
+# ── PWA 前端 / Worker 代理 / 构建工具 放行 ──
+!/.github/workflows/deploy-pages.yml
+!/app/
+!/app/**
+!/worker/
+!/worker/**
+!/tools/
+!/tools/*.mjs
+
 # ── 临时产物 / 缓存：即便名字匹配也要排除（必须放在放行之后才生效）──
 __pycache__/
 *.pyc
@@ -47,3 +56,9 @@ _crop*.png
 cardtest/t.html
 cardtest/t.png
 cardtest/spend-out.png
+
+# 放行 app/ worker/ 之后，重新排除依赖与真实密钥（顺序必须在放行之后）
+node_modules/
+worker/.dev.vars
+.dev.vars
+app/_*

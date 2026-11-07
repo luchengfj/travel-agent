@@ -12,7 +12,7 @@
 | `team-example.md` | 桂林同一需求 · 多角色协作冲突场景（200 行，埋 5 个坑） | 验证汇总者会不会照单全收：口径统一、加总自检、冲突裁决、干扰项不误判 |
 | `bangkok-example.md` | 曼谷 4 天 3 晚 · **境外变体**（第 0–9 轮，286 行，埋 5 个坑） | 验证境外四件事：签证 / 入境登记 / 汇率 / 时差，以及「政策优惠的适用人群」陷阱 |
 | `perfect-trip.md` | 桂林阳朔 3 天 2 夜 · **端到端成品攻略**（现查房价/高铁/门票 + 天气双轨 + 三处加总） | 用真实需求走一遍完整链路，看「查不到就如实标注」「不写已计入」是否落地 |
-| `regress.py` | **一键静态回归脚本**（结构 + 算术 + 基准 + 自检 + 台账 + 卡片 + 快照 + 出境卡 + 记账 + 回放，十块） | 改完提示词先跑这一条，PASS 全绿再谈人工逐轮对照 |
+| `regress.py` | **一键静态回归脚本**（结构 + 算术 + 基准 + 自检 + 台账 + 卡片 + 快照 + 出境卡 + 记账 + 回放 + 应用一致性，十一块） | 改完提示词先跑这一条，PASS 全绿再谈人工逐轮对照 |
 | `cases.json` + `replay.py` | 行为回放用例与操作卡（不判分只留痕） | 改完提示词跑一遍 `replay.py trace`，人眼 diff 逐轮输出 |
 | `report.md` | `regress.py --report` 生成的最新报告 | 留档 / 对比两次改动 |
 
@@ -20,7 +20,7 @@
 
 ## 一键静态回归（先跑这个）
 
-`regress.py` **不调大模型、不渲染图片、不联网**，只做十块确定性的事，一条命令出对比报告：
+`regress.py` **不调大模型、不渲染图片、不联网**，只做十一块确定性的事，一条命令出对比报告：
 
 ```bash
 PY="C:/Users/cheng/.dsh/dsh-runtimes/dsh-next-primary-runtime/dependencies/python/python.exe"
@@ -43,6 +43,7 @@ cd C:/ai && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py
 - 检查 [H] **出境卡附加块**：`cardtest/bangkok.html` 逐块验 5 个固定附加块真的在卡上（kicker 天数 / 汇率行带采集日期 / TDAC 时间窗 / 只认现金 / 不适用游客陷阱），并用 `>3,072<`、`>¥6,144<` 与基准做大数字 DOM 级交叉。
 - 检查 [I] **记账内核**：从源码 `compile()` 加载 `cardtest/ledger.py`，断言 `PLAN` 与基准一致、`amount` 必填无默认值、`compute()` 与 `ledger-golden.json` 对账、空账本 0 笔 ¥0、入库 `guilin-spend.html` == `render_spend(空)`。
 - 检查 [J] **行为回放用例**：`cases.json` 的 schema / 用例数 / id 去重 / source 指向存在 / 字段齐全 / 「不判分」声明还在，且 `replay.py` 提供 list/prompt/trace。**只验结构，不给行为判分**。
+- 检查 [K] **应用一致性（PWA/Worker）**：`worker/src/prompt.js` 与 `travel-agent.md` 逐字节一致（防提示词漂移）、builder / wrangler 三变量无密钥 / manifest 合法含必需键 / sw.js 9 项离线外壳齐且 `/api/chat` 不缓存 / worker 转发骨架 / 凭据正则活体样例 + 运行时 0 密钥 / 图标与 Demo 样例成品齐。
 
 ### 一个踩过的坑（别改回去）
 
@@ -159,7 +160,8 @@ PY="C:/Users/cheng/.dsh/dsh-runtimes/dsh-next-primary-runtime/dependencies/pytho
 | 2026-11-05 | **补第二层缺口：断言自己没人测**。新增 [D] `check_self()` + `SELFTEST`：每条防复发正则配内存错值样例，活体验证能命中；校验配置规模、文件存在、断言数 > 0、无孤儿断言 | 脚本自身（元层） | 0（把 `3 DAYS 3 NIGHTS` 正则改成 `3 DAYS [Z]3 NIGHTS` → 自检报「断言失效」/ exit 1；还原 → exit 0；PASS 65 → **88**） | 已交付 |
 | 2026-11-05 | **补第三层缺口（PASS 88 → 157）**：[E] 事实台账 `facts.json` 11 条 / [F] 全部 8 张卡静态健全 + kicker 通用规则 / [G] 价格快照 `fetched_at` + 提示词数字交叉；`hotel_price.py` 写采集时间；新增 `AGENTS.md` | 台账 + 卡片 + 快照 + 交接指引 | 0（三处故障注入各 exit 1 且准确命中 → 还原 exit 0） | 已交付 |
 | 2026-11-06 | **补第四层缺口（PASS 161 → 182）**：[H] 出境卡 5 固定附加块 —— 新建 `cardtest/bangkok.html`（曼谷境外卡样板），逐块验附加块真的在卡上 + 大数字 DOM 级交叉；`shot.py` 渲染高度可覆盖 | 境外卡 HTML + 回归脚本 | 0（4 处故障注入各 exit 1 且准确命中 → 还原 exit 0） | 已交付 |
-| 2026-11-07 | **补第五层缺口（PASS 182 → 209）**：[I] 记账内核 `ledger.py` 兑现 spend 承诺（顺带修 `guilin-spend.html` ¥3,700→¥3,400 真 bug）；[J] 行为回放 `cases.json`+`replay.py` 不判分只留痕 | 记账内核 + 回放用例 + 回归脚本 | 0（6 处故障注入各 exit 1 且准确命中 → 还原 exit 0） | 本轮 |
+| 2026-11-07 | **补第五层缺口（PASS 182 → 209）**：[I] 记账内核 `ledger.py` 兑现 spend 承诺（顺带修 `guilin-spend.html` ¥3,700→¥3,400 真 bug）；[J] 行为回放 `cases.json`+`replay.py` 不判分只留痕 | 记账内核 + 回放用例 + 回归脚本 | 0（6 处故障注入各 exit 1 且准确命中 → 还原 exit 0） | 已交付 |
+| 2026-11-07 | **补第六层缺口（PASS 209 → 229）**：手机 PWA `app/` + Cloudflare Worker `worker/` + 幂等 builder `tools/`；[K] 应用一致性门禁（`prompt.js` 与提示词逐字节同步、骨架完整、凭据正则活体 + 运行时 0 密钥） | PWA + Worker + 回归脚本 + 四文档 | 0（5 处故障注入各 exit 1 且准确命中 → 还原 exit 0） | 本轮 |
 
 > 新增一行时照抄表头格式；「未通过的检查点」写编号或原句，方便 grep。
 > 静态全绿只代表**结构、算术、基准完整性**没退化；行为与视觉对照仍按上面人工流程跑。

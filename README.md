@@ -18,6 +18,7 @@
 ├── AGENT-解析.md                # 全解析：逐节拆解 + 翻车点地图 + 已知边界
 ├── AGENTS.md                   # 给接手 Agent 的工作区指引（唯一真值源 / 硬边界 / 怎么加检查）
 ├── .github/workflows/regress.yml # CI 门禁：push / PR 自动跑静态回归
+├── .github/workflows/deploy-pages.yml # GitHub Actions 部署 Pages（只发布 app/）
 ├── .gitignore
 ├── cardtest/                    # 图卡渲染 + 实时取数
 │   ├── shot.py                  # HTML+CSS → 无头 Edge 截全页 → Pillow 自动裁白边
@@ -27,6 +28,14 @@
 │   ├── *.html                   # 各张卡片的排版源码
 │   ├── *.png                    # 渲染产物（2160px 宽 2 倍图）
 │   └── *-prices-*.json          # 实测房价快照
+├── app/                         # 手机 PWA（零构建纯静态，GitHub Pages 托管）
+│   ├── index.html / styles.css / app.js / sw.js / manifest.webmanifest
+│   ├── icons/                   # 192 / 512 PWA 图标
+│   └── sample-plan.md / sample-plan-card.png   # Demo 模式的已核实静态成品
+├── worker/                      # Cloudflare Worker：LLM 代理（API Key 只在 secret）
+│   ├── src/index.js             # /api/chat，前置注入 system=travel-agent.md
+│   └── src/prompt.js            # build-system-prompt.mjs 生成的提示词副本
+├── tools/build-system-prompt.mjs # 幂等构建：travel-agent.md → prompt.js
 ├── examples/                    # 回归基准
 │   ├── README.md                # 怎么跑回归 / 判定标准 / 历史翻车点
 │   ├── guilin-example.md        # plan 全流程（4 天 3 晚）
@@ -36,7 +45,7 @@
 │   ├── facts.json               # 易过期事实台账（claim + verified_on + source_url）
 │   ├── cases.json               # 行为回放用例（不判分只留痕）
 │   ├── replay.py                # 行为回放操作卡：list / prompt / trace
-│   ├── regress.py               # 一次性静态自检脚本（PASS 209 / FAIL 0）
+│   ├── regress.py               # 一次性静态自检脚本（PASS 229 / FAIL 0）
 │   └── report.md                # 最近一次回归报告
 ├── hangzhou-5d-budget.md        # 杭州 5 天预算原始底稿
 ├── perfect-trip-card.png        # 桂林阳朔 3 天 2 夜「完美攻略」成品卡
@@ -91,7 +100,7 @@ cd C:/ai/cardtest
 
 ## 能力边界（务必如实标注）
 
-- **静态全绿 ≠ 行为没退化**：`regress.py` 只做静态结构 + 算术重算 + 基准完整性 + 断言自检 + 事实台账 + 卡片静态健全 + 价格快照交叉 + 出境卡附加块 + 记账内核 + 行为回放用例，不调 LLM、不渲染、不查实时数据。逐轮行为、图卡目检、实时数据现查仍需人工对照。
+- **静态全绿 ≠ 行为没退化**：`regress.py` 只做静态结构 + 算术重算 + 基准完整性 + 断言自检 + 事实台账 + 卡片静态健全 + 价格快照交叉 + 出境卡附加块 + 记账内核 + 行为回放用例 + 应用一致性(PWA/Worker)，不调 LLM、不渲染、不查实时数据。逐轮行为、图卡目检、实时数据现查仍需人工对照。
 - **房价只到城市 / 商圈粒度**：能拿「阳朔西街 12 家 ¥80–479 / 中位 ¥171」，不能定位具体某店的可下单价。SSR 是约 12 条/页的快照，**非可下单承诺价**，下单前必须重读。
 - **天气窗口外只能给气候常态**：工具实测只覆盖 7 天，更远的行程标「历史同期，非实时预报」并给复核提醒。
 - **图卡自检依赖模型视觉能力**：无视觉能力时走「尺寸 / 内容 / 溢出」三项结构化校验，并明说「未做像素级目检」。
@@ -163,6 +172,13 @@ cd C:/ai/cardtest
   replay.py 操作卡丢失）各 exit 1 且准确命中、还原 exit 0。反向验证还抓到并修掉一个真弱点：
   `check_ledger()` 原用 `importlib` 会读 `__pycache__` 旧 `.pyc`（等长数字改回命中缓存）产生假 FAIL，
   现改成从源码字节 `compile()`，注释写明「回归断言必须只信当前源码字节，不能信任何缓存」。
+
+
+**2026-11-07 补的第六层缺口（PASS 209 → 229）：把提示词做成随时可调用的手机 PWA**。用户要「旅行智能体做成小程序，随时能做旅游计划」，遂按已批准的方案落地三层：
+- **`app/` 手机 PWA（零构建零依赖，GitHub Pages 托管）**：对话收发、极简 Markdown 渲染、历史 localStorage、Service Worker 离线开外壳、安装到主屏幕；**Demo 模式**用已核实静态成品（明确「样例，非实时生成」），未配 Worker / 离线时**绝不针对本次输入编造计划**。
+- **`worker/` Cloudflare Worker**：`POST /api/chat` 剥掉客户端伪造的 system、前置注入 `travel-agent.md` 全文、Origin 白名单、限长限轮数，`LLM_API_KEY` 只放 Authorization 头且统一 `{error}` 不回显密钥；前端/仓库/CI 日志 0 命中。
+- **`tools/build-system-prompt.mjs` + `[K]` 应用一致性门禁**：`prompt.js` 是提示词的生成副本，改了 `travel-agent.md` 忘了重跑 builder 就会让线上行为与基准脱节。`[K]` 逐字节比对两者、验应用骨架齐全 / manifest 合法 / SW 缓存清单 / 凭据正则活体样例 / 运行时 0 密钥。5 处故障注入（提示词漂移 / 塞假 key / 删 manifest 键 / 删 SW 缓存项 / wrangler 写密钥）各 exit 1 且准确命中、还原 exit 0。**共 +20 条断言**。
+> 部署需用户一次性操作：Cloudflare 建 Worker / `wrangler secret put LLM_API_KEY` / 仓库 Settings 把 Pages Source 设为 **GitHub Actions** / 手机 Settings 填 Worker URL。脚本与文档不能代做，已在 `app/README.md`、`worker/README.md` 写全步骤。
 
 **2026-11-05 加 CI 门禁**：上面这套自检再好用，也只在本地、只在人记得跑的时候生效。
 新增 `.github/workflows/regress.yml`，push / PR 自动跑 `regress.py` 当门禁并上传报告 artifact。

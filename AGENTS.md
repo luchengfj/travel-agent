@@ -18,6 +18,7 @@
 | `cardtest/shot.py` | Edge 无头渲染 HTML→PNG | 只在本机 Windows 用，CI 不跑 |
 | `cardtest/ledger-golden.json` | 记账内核的 golden 夹具（3 笔演示账 + expected） | `[I]` 用它对 compute() 结果 |
 | `examples/cases.json` + `replay.py` | 行为回放「不判分只留痕」用例与操作卡 | `[J]` 只验结构，行为对照归人眼 |
+| `app/` + `worker/` + `tools/` | 手机 PWA 前端 / Cloudflare Worker 代理 / 提示词→`prompt.js` 幂等构建 | 改 `travel-agent.md` 后必须重跑 `node tools/build-system-prompt.mjs`，否则 `[K]` 门禁立刻 FAIL |
 
 **铁律**：金额改一处，必须同步「分项 / 合计 / 图上大数字」三处；加总差 1 元也要找出来。
 基准样例的「bug 记录区」和「合格输出区」共存——**基准只断言「正确值必须出现」，
@@ -30,7 +31,7 @@ cd C:/ai && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py            # 打印
 cd C:/ai && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --report   # 落盘 report.md
 ```
 
-退出码 `0` = 全绿，`1` = 有 FAIL。当前基线 **PASS 209 / FAIL 0**。
+退出码 `0` = 全绿，`1` = 有 FAIL。当前基线 **PASS 229 / FAIL 0**。
 CI（`.github/workflows/regress.yml`）在每次 push / PR 上自动跑同一条命令，纯标准库、不联网。
 
 ## 3. 硬边界（别越线，也别假装做到了）
@@ -44,7 +45,10 @@ CI（`.github/workflows/regress.yml`）在每次 push / PR 上自动跑同一条
 - **SSR 是灰色手段**：`hotel_price.py` 抓的是服务端渲染的挂牌价，是「城市/商圈级快照」，
   不是可下单承诺价；别高频抓、别拿它当登录态可订价。
 - **凭据不进仓库**：`.gitignore` 是白名单模式（`*` 忽略一切），新增文件必须显式放行；
-  提交前 `git grep -l --cached -E 'ghp_|github_pat_|x-access-token:|PRIVATE KEY'` 必须 0 命中。
+  提交前用 `git grep -l --cached -E <精确形态>` 扫运行时代码/配置必须 0 命中。
+  精确形态（带长度边界，避免 [K] 的假 key 活体样例假阳性）定义在
+  `examples/regress.py` 的 `CREDENTIAL_PATTERNS`；`.md` 文档合法讨论键名前缀、
+  不进全仓 grep（由 [K] 的 `APP_SCAN_FILES` 覆盖）。
 
 ## 4. 想加新检查时
 

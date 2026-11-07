@@ -1,0 +1,60 @@
+# 行旅 · Travel Agent — 手机 PWA 自动部署（GitHub Pages）
+#
+# 为什么单独一个 workflow：regress.yml 是「改了就拦」的门禁，只跑纯标准库自检；
+# 这个只负责把 app/ 静态目录发布成公网 HTTPS，二者互不阻塞、职责分开。
+# 只上传 app/ 一个目录——提示词、基准、回归脚本、worker/ 后端源码一律不发布。
+#
+# 一次性人工操作（脚本无法代做）：
+#   仓库 Settings → Pages → Build and deployment → Source 选「GitHub Actions」。
+#   之后每次 push 到 main 会自动重建；Pages 会给 https://<user>.github.io/<repo>/。
+#   注意：Worker 的 ALLOWED_ORIGIN 要与该地址一致（当前写死 https://luchengfj.github.io）。
+
+name: 部署 PWA (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Pages 部署所需的最小权限：写 Pages、拿 OIDC token、读仓库内容。
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 只允许一个并发部署，且不取消正在进行的那次（避免产物半截被替换）。
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: 打包 app/ 静态产物
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+      - name: 配置 Pages
+        uses: actions/configure-pages@v5
+      - name: 上传静态产物（只传 app/）
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: app/
+      - name: 校验离线外壳已进产物
+        run: |
+          test -f app/index.html
+          test -f app/manifest.webmanifest
+          test -f app/sw.js
+          test -f app/sample-plan.md
+
+  deploy:
+    name: 发布到 Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 部署
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,16 @@
+{
+  "name": "行旅 · 旅行规划",
+  "short_name": "行旅",
+  "description": "随时调用的旅行规划智能体 —— 三档骨架、逐日表、待核实清单，查不到就如实标注",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBF8F2",
+  "theme_color": "#1E3A34",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

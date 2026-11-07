@@ -1,0 +1,16 @@
+{
+  "name": "xinglv-travel-agent-worker",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Minimal Cloudflare Worker proxy for the Xinglv travel Agent PWA",
+  "scripts": {
+    "test": "node test.mjs",
+    "check": "node --check src/index.js",
+    "deploy": "wrangler deploy",
+    "secret": "wrangler secret put LLM_API_KEY"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

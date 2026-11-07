@@ -1,0 +1,16 @@
+# worker/wrangler.toml
+# 非敏感配置放这里；LLM_API_KEY 必须用 `wrangler secret put LLM_API_KEY`，绝不写进本文件。
+# 部署前把 ALLOWED_ORIGIN 改成你的 GitHub Pages 源（精确到协议+域名，不带路径）。
+
+name = "xinglv-travel-agent"
+main = "src/index.js"
+compatibility_date = "2026-11-07"
+
+[vars]
+# 任意 OpenAI 兼容端点的 base（不要带 /chat/completions，程序会自己拼）。
+# 例：DeepSeek https://api.deepseek.com / OpenAI https://api.openai.com/v1
+LLM_BASE_URL = "https://api.deepseek.com"
+LLM_MODEL = "deepseek-chat"
+# 逗号分隔可填多个源；开发期可用 "*"，生产务必改成具体 Pages 源。
+# 本项目 Pages 地址通常是 https://luchengfj.github.io
+ALLOWED_ORIGIN = "https://luchengfj.github.io"
