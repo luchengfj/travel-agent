@@ -105,11 +105,11 @@ function request({ path: pathname, method = 'GET', headers = {}, body, port = PO
   })
 }
 
-async function waitForPort(attempts = 60) {
+async function waitForPort(attempts = 60, port = PORT) {
   for (let i = 0; i < attempts; i += 1) {
     const ok = await new Promise((resolve) => {
       const probe = http.request(
-        { host: HOST, port: PORT, path: '/healthz', method: 'GET', timeout: 300 },
+        { host: HOST, port, path: '/healthz', method: 'GET', timeout: 300 },
         (res) => { res.resume(); resolve(true) },
       )
       probe.on('error', () => resolve(false))
@@ -389,6 +389,160 @@ await test('sw.js 与 manifest 也同源可取（PWA 才能装）', async () => 
   assert.equal(mf.status, 200)
   assert.equal(mf.json?.display, 'standalone')
 })
+
+/* ------------------------------------------------------------------ */
+/* 公网模式（手机经隧道访问）：配对、令牌、Host 白名单                    */
+/* ------------------------------------------------------------------ */
+
+const PUB_PORT = PORT + 1
+const PUB_HOST = '127.0.0.1'
+const pub = makeCtx({ selection: { provider: 'workbuddy', model: 'deepseek-v4.1-flash', reasoningEffort: 'high' } })
+apply(pub.ctx, { host: PUB_HOST, port: PUB_PORT, fallbackPorts: [], publicAccess: true, allowQuickTunnel: true, publicHosts: [] })
+const pubUp = await waitForPort(60, PUB_PORT)
+assert.equal(pubUp, true, '公网模式实例没有起来')
+
+const pubInfo = await request({ path: '/bridge-info.json', port: PUB_PORT })
+const MAIN_TOKEN = pubInfo.json?.token
+const PAIR_CODE = pubInfo.json?.pairCode
+const TUNNEL = 'sample-tunnel-abc.trycloudflare.com'
+
+await test('公网模式：loopback 侧仍能看到 token 与 6 位配对码', async () => {
+  assert.equal(typeof MAIN_TOKEN, 'string')
+  assert.match(String(PAIR_CODE), /^\d{6}$/, `配对码应当是 6 位数字，实际 ${PAIR_CODE}`)
+})
+
+await test('公网模式：公网 Host 下有 /bridge-info.json 但**不含 token 与配对码**', async () => {
+  const res = await request({ path: '/bridge-info.json', port: PUB_PORT, headers: { host: TUNNEL } })
+  assert.equal(res.status, 200, res.text)
+  assert.equal(res.json?.auth, 'pair')
+  assert.equal(res.json?.token, undefined, '公网侧绝不能下发主 token')
+  assert.equal(res.json?.pairCode, undefined, '公网侧绝不能下发配对码')
+  assert.doesNotMatch(res.text, /\d{6}/, '公网响应正文里不该出现任何 6 位数字')
+})
+
+await test('公网模式：trycloudflare 的 Host 放行静态页面（手机才能下载 PWA）', async () => {
+  const res = await request({ path: '/', port: PUB_PORT, headers: { host: TUNNEL } })
+  assert.equal(res.status, 200)
+  assert.match(res.text, /行旅/)
+})
+
+await test('公网模式：非白名单 Host 仍 403（不因打开公网就全放行）', async () => {
+  const res = await request({ path: '/healthz', port: PUB_PORT, headers: { host: 'evil.example.com' } })
+  assert.equal(res.status, 403)
+  assert.match(String(res.json?.error?.message), /public host/)
+})
+
+await test('公网模式：伪装成 trycloudflare 的域（evil-trycloudflare.com）不放行', async () => {
+  const res = await request({ path: '/healthz', port: PUB_PORT, headers: { host: 'evil-trycloudflare.com' } })
+  assert.equal(res.status, 403)
+})
+
+await test('公网模式：/v1/* 用主 token 经公网 Host 也能过（同一进程内两条路都认）', async () => {
+  const res = await request({
+    path: '/v1/models',
+    port: PUB_PORT,
+    headers: { authorization: `Bearer ${MAIN_TOKEN}`, host: TUNNEL },
+  })
+  assert.equal(res.status, 200, res.text)
+})
+
+await test('配对：错码 → 401 且不回显正确码', async () => {
+  const wrong = String((Number(PAIR_CODE) + 1) % 1000000).padStart(6, '0')
+  const res = await request({
+    path: '/pair',
+    method: 'POST',
+    port: PUB_PORT,
+    headers: { host: TUNNEL },
+    body: { code: wrong },
+  })
+  assert.equal(res.status, 401, res.text)
+  assert.equal(res.json?.token, undefined)
+  assert.doesNotMatch(res.text, new RegExp(PAIR_CODE), '不能把正确码带出来')
+})
+
+await test('配对：非 6 位数字 → 400', async () => {
+  const res = await request({
+    path: '/pair', method: 'POST', port: PUB_PORT, headers: { host: TUNNEL }, body: { code: 'abcdef' },
+  })
+  assert.equal(res.status, 400)
+})
+
+let SESSION_TOKEN = null
+await test('配对：正确码 → 拿到会话令牌（不是主 token）', async () => {
+  const res = await request({
+    path: '/pair', method: 'POST', port: PUB_PORT, headers: { host: TUNNEL }, body: { code: PAIR_CODE },
+  })
+  assert.equal(res.status, 200, res.text)
+  assert.equal(typeof res.json?.token, 'string')
+  assert.ok(res.json.token.length >= 40)
+  assert.notEqual(res.json.token, MAIN_TOKEN, '会话令牌不能等于主 token')
+  assert.equal(res.json?.expiresIn, 30 * 24 * 3600)
+  SESSION_TOKEN = res.json.token
+})
+
+await test('配对后：会话令牌能过 /v1/models', async () => {
+  const res = await request({
+    path: '/v1/models', port: PUB_PORT, headers: { authorization: `Bearer ${SESSION_TOKEN}`, host: TUNNEL },
+  })
+  assert.equal(res.status, 200, res.text)
+  assert.ok(res.json.data.map((m) => m.id).includes('deepseek-v4.1-flash'))
+})
+
+await test('配对后：会话令牌能真正发起 chat/completions', async () => {
+  pub.calls.length = 0
+  const res = await request({
+    path: '/v1/chat/completions',
+    method: 'POST',
+    port: PUB_PORT,
+    headers: { authorization: `Bearer ${SESSION_TOKEN}`, host: TUNNEL },
+    body: { messages: [{ role: 'user', content: '你好' }] },
+  })
+  assert.equal(res.status, 200, res.text)
+  assert.equal(res.json?.choices?.[0]?.message?.content, '你好，我是行旅。')
+  assert.equal(pub.calls.length, 1)
+})
+
+await test('配对后：无凭据仍然 401（配对不等于放行匿名）', async () => {
+  const res = await request({ path: '/v1/models', port: PUB_PORT, headers: { host: TUNNEL } })
+  assert.equal(res.status, 401)
+})
+
+await test('配对：失败次数超预算 → 429（6 位码不能被穷举）', async () => {
+  const wrong = String((Number(PAIR_CODE) + 7) % 1000000).padStart(6, '0')
+  let sawRateLimit = false
+  for (let i = 0; i < 12; i += 1) {
+    const res = await request({
+      path: '/pair', method: 'POST', port: PUB_PORT, headers: { host: TUNNEL }, body: { code: wrong },
+    })
+    if (res.status === 429) { sawRateLimit = true; break }
+  }
+  assert.equal(sawRateLimit, true, '连续失败后应当触发 429')
+})
+
+/* publicAccess=false 时必须完全退回到旧行为 */
+const OFF_PORT = PORT + 2
+const off = makeCtx({ selection: { provider: 'workbuddy', model: 'deepseek-v4.1-flash' } })
+apply(off.ctx, { host: '127.0.0.1', port: OFF_PORT, fallbackPorts: [] })
+assert.equal(await waitForPort(60, OFF_PORT), true, 'publicAccess=false 实例没起来')
+
+await test('publicAccess=false：公网 Host 一律 403（默认安全）', async () => {
+  const res = await request({ path: '/healthz', port: OFF_PORT, headers: { host: TUNNEL } })
+  assert.equal(res.status, 403)
+})
+
+await test('publicAccess=false：/pair 不存在（404），不会留下可爆破面', async () => {
+  const res = await request({ path: '/pair', method: 'POST', port: OFF_PORT, body: { code: '123456' } })
+  assert.equal(res.status, 404, res.text)
+})
+
+await test('publicAccess=false：loopback 的 /bridge-info.json 不含配对码', async () => {
+  const res = await request({ path: '/bridge-info.json', port: OFF_PORT })
+  assert.equal(res.status, 200)
+  assert.equal(res.json?.pairCode, undefined)
+})
+
+off.dispose()
+pub.dispose()
 
 dispose()
 await new Promise((r) => setTimeout(r, 150))

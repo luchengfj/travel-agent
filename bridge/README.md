@@ -25,7 +25,7 @@ GitHub Pages 是 `https://`，本机桥是 `http://127.0.0.1`。浏览器会同�
 | 措施 | 说明 |
 |---|---|
 | 只监听 loopback | 默认 `127.0.0.1:8789`，失败依次退到 8794/8795/8796 |
-| Host 头校验 | 不是 loopback 一律 403，挡 DNS rebinding |
+| Host 头校验 | 不是 loopback（或未在公网白名单里）一律 403，挡 DNS rebinding |
 | bearer 鉴权 | 所有 `/v1/*` 需 `Authorization: Bearer <token>` |
 | token 每进程随机 | `randomBytes(32)`，不落盘，重启即失效 |
 | 引导端点不发 CORS | `/bridge-info.json` 只同源可读，别的网站拿不到 token |
@@ -34,13 +34,58 @@ GitHub Pages 是 `https://`，本机桥是 `http://127.0.0.1`。浏览器会同�
 **这不是沙箱**：本机同用户的其它进程仍可读 `http://127.0.0.1:8789/bridge-info.json`
 拿到 token。这是「同机同用户即同信任域」的取舍，README 与界面都不假装它更安全。
 
+## 公网模式（让手机也能用）
+
+手机访问不到你电脑的 `127.0.0.1`。把 `config.publicAccess` 打开，再用隧道
+（如 `cloudflared`）把公网域名指到本桥，手机就能打开同一个 PWA。
+
+**打开它要求下面两条同时成立，缺一不可：**
+
+1. **Host 白名单**：只有 `publicHosts` 显式列出的域名、或 `allowQuickTunnel: true`
+   时匹配 `^[a-z0-9-]+\.trycloudflare\.com$`（精确一层子域，`evil-trycloudflare.com`
+   不放行）的 Host 才被接受。其余的仍然 403。
+2. **主 token 不出公网**：公网侧 `/bridge-info.json` 只回元信息 + `auth:'pair'`，
+   **不下发 token、也不下发配对码**。手机必须先用 **6 位配对码**调 `POST /pair`
+   换一张**会话令牌**（30 天 TTL，进程重启全失效）。
+
+配对码由 `randomInt(0, 1000000)` 生成，只出现在：
+- **loopback** 的 `/bridge-info.json`（`pairCode` 字段 → 电脑上的设置面板显示）
+- 宿主日志（`public access enabled; pairing code = ……`）
+
+也就是说**「知道公网 URL」不足以换到令牌**，还得能看到你电脑屏幕。
+配对失败有滑动窗口预算（10 分钟内 10 次 → 429），否则 10^6 的码空间几分钟就能穷举。
+
+```yaml
+config:
+  publicAccess: true      # 默认 false；改回 false 即完全退回「只认 loopback」
+  allowQuickTunnel: true  # quick tunnel 域名每次变，无法预写进 publicHosts
+  publicHosts: []         # 固定域名的命名隧道写这里（小写、不含协议端口）
+```
+
+### 手机接入步骤
+
+1. 电脑上打开 `http://127.0.0.1:8789` → ⚙ 设置 → 看到 **6 位配对码**。
+2. 起隧道：`cloudflared tunnel --url http://127.0.0.1:8789 --protocol http2`
+   （本机默认 QUIC 出站被挡，必须指定 `--protocol http2`）。
+3. 手机打开隧道给的 `https://xxx.trycloudflare.com` → ⚙ 设置 → 输入配对码 → 保存。
+4. 之后直接发消息即可，顶栏显示「模式：本机 <模型名>」。
+
+> quick tunnel 的域名**每次重启都变**，配对码也是。换域名后浏览器里存的是旧域名的
+> 令牌，需要在新域名下重新配对一次。
+
+| 方法 | 路径 | 鉴权 | 说明 |
+|---|---|---|---|
+| GET | `/bridge-info.json` | 否（不发 CORS） | loopback 回 token + pairCode；公网只回元信息 + `auth:'pair'` |
+| POST | `/pair` | 配对码 | `{code}` → `{token, expiresIn}`；`publicAccess=false` 时 404 |
+
 ## 接口
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|
 | GET | `/`、`/index.html`、`/styles.css`、`/app.js`、`/sw.js`、`/manifest.webmanifest`、`/icons/*`、`/sample-plan*` | 否 | 同源伺服 PWA（白名单） |
 | GET | `/healthz` | 否 | `{ ok: true }` |
-| GET | `/bridge-info.json` | 否（但不发 CORS） | 当前 provider/model + 本进程 token |
+| GET | `/bridge-info.json` | 否（但不发 CORS） | 当前 provider/model + 本进程 token（公网侧只有元信息） |
+| POST | `/pair` | 配对码 | 换 30 天会话令牌（仅 `publicAccess=true` 时存在） |
 | GET | `/v1/models` | 是 | 列出当前 provider 的模型 |
 | POST | `/v1/chat/completions` | 是 | OpenAI 兼容；服务端注入「行旅」system |
 
@@ -56,6 +101,9 @@ GitHub Pages 是 `https://`，本机桥是 `http://127.0.0.1`。浏览器会同�
         fallbackPorts: [8794, 8795, 8796]
         provider: ''   # 留空 = 跟随 DSH 当前默认模型
         model: ''
+        publicAccess: false    # 想给手机用才改成 true
+        allowQuickTunnel: false
+        publicHosts: []
 ```
 
 `provider` / `model` 留空即跟随 `agent-default-model`，这是推荐配置——换模型时
@@ -64,8 +112,12 @@ GitHub Pages 是 `https://`，本机桥是 `http://127.0.0.1`。浏览器会同�
 ## 测试
 
 ```bash
-node bridge/test.mjs     # 18 个用例，全 mock ctx.llm，不联网
+node bridge/test.mjs     # 34 个用例，全 mock ctx.llm，不联网
 ```
+
+含 16 条公网模式用例：公网侧不下发 token/配对码、`evil-trycloudflare.com` 不放行、
+错码 401 不回显正确码、会话令牌 ≠ 主 token、配对后能真正对话、超预算 429、
+`publicAccess=false` 时 `/pair` 404 且公网 Host 一律 403。
 
 注意：不要用 `node --test`，本机会 `spawn EPERM`。
 

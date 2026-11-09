@@ -57,9 +57,21 @@
       <h2>设置</h2>
       <button class="icon-btn" id="btn-settings-close" type="button" aria-label="关闭">✕</button>
     </div>
+    <div class="pair-code-show" id="pair-code-show" hidden>
+      <span class="pair-code-label">手机配对码</span>
+      <b class="pair-code-value" id="pair-code-value">------</b>
+      <span class="pair-code-hint">在手机上打开隧道地址 → 设置 → 输入这串数字。每次重启 DSH 都会变。</span>
+    </div>
+    <div class="pair-block" id="pair-block" hidden>
+      <label class="field-label" for="pair-code">配对码（6 位数字）</label>
+      <input id="pair-code" type="text" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="000000" spellcheck="false">
+      <p class="hint">在<b>电脑上</b>打开 <code>http://127.0.0.1:8789</code>，页头会显示这次运行的 6 位配对码（DSH 日志里也有）。手机输一次即可，之后自动记住。</p>
+      <button id="btn-pair" class="primary" type="button">配对这台手机</button>
+      <div class="panel-note" id="pair-status"></div>
+    </div>
     <label class="field-label" for="worker-url">Cloudflare Worker 地址（可选）</label>
     <input id="worker-url" type="url" inputmode="url" placeholder="https://xxx.workers.dev" spellcheck="false">
-    <p class="hint"><b>本机打开时不需要填。</b>从 <code>http://127.0.0.1</code> 打开本页（由 DSH 的行旅桥发出）会自动使用 DSH 当前模型，无需 Worker、无需 API Key。只有在手机上从公网打开时，才需要填自己的 Worker 地址经它转发。留空则为 <b>Demo 模式</b>（展示已核实的静态成品，不联网）。地址只存在本机浏览器 localStorage，不写进代码或仓库。</p>
+    <p class="hint"><b>本机打开时不需要填。</b>从 <code>http://127.0.0.1</code> 打开本页（由 DSH 的行旅桥发出）会自动使用 DSH 当前模型，无需 Worker、无需 API Key。手机经隧道（如 cloudflared）打开时，用上面的<b>配对码</b>授权，同样不需要 Worker。只有既没有本机桥、也没有配对过时，才需要填自己的 Worker 地址经它转发。留空则为 <b>Demo 模式</b>（展示已核实的静态成品，不联网）。地址与配对令牌只存在本机浏览器 localStorage，不写进代码或仓库。</p>
     <div class="panel-actions">
       <button id="btn-save" class="primary" type="button">连接并保存</button>
       <button id="btn-demo" class="ghost" type="button">切回 Demo</button>

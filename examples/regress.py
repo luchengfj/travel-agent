@@ -1228,6 +1228,104 @@ def check_bridge():
           "sw.js 用 endsWith() 实调用把 Worker 与桥的对话接口、以及带随机 token 的引导端点排除缓存",
           "sw.js 缓存守卫缺实调用（注释里提到不算）：%s（重启后可能拿旧 token 一直 401）" % guard_miss)
 
+    # ---- ⑨ 公网模式（手机经隧道访问）：安全前提必须逐条成立 ----
+    # 这一组是本轮最危险改动的看门狗：一旦 publicAccess 被打开而配对机制没跟上，
+    # 等于把「用你的额度跑模型」暴露成公网匿名接口。所以每条都查**实调用**。
+    pub_needles = [
+        ("host-public-guard", "isPublicHost",
+         "公网 Host 走独立白名单判定，而不是「非 loopback 就拒」"),
+        ("pair-endpoint", "'/pair'",
+         "存在 POST /pair 换会话令牌的端点"),
+        ("pair-code-random", "randomInt",
+         "配对码运行时随机生成，不写死"),
+        ("session-store", "sessions",
+         "会话令牌有独立存储（配对后手机用，重启即失效）"),
+        ("auth-or-session", "isAuthorized",
+         "鉴权接受主 token 或会话令牌（不再只有 bearerOk 一条路）"),
+        ("pair-rate-limit", "PAIR_MAX_FAILURES",
+         "配对失败有预算，6 位码不可穷举"),
+    ]
+    pub_miss = [label for label, needle, _ in pub_needles if idx is None or needle not in idx]
+    check(not pub_miss, "桥·公网模式关键件",
+          "公网 Host 白名单 / 配对端点 / 随机配对码 / 会话存储 / 双路鉴权 / 配对限流 全在",
+          "公网模式缺关键件：%s（打开 publicAccess 会变成公网匿名接口）" % pub_miss)
+
+    # 配对限流必须真的生效，不能只是定义了常量。
+    # 只看「PAIR_MAX_FAILURES 存在」会漏掉「比较写错/被放宽」这种情况（反向验证抓到过），
+    # 所以要求：handlePair 里出现实际比较 + 429 拒绝。
+    enforce_ok = bool(idx and re.search(r"pairFailures\.length\s*>=?\s*guard\.PAIR_MAX_FAILURES", idx)
+                      and re.search(r"\b429\b", idx))
+    check(enforce_ok, "桥·配对限流生效",
+          "配对失败达到预算时真的返回 429（不是只定义常量）",
+          "配对限流没真正生效 —— 6 位配对码可被穷举")
+
+    # 光有结构还不够：把预算改成 1e9 也能通过上面的检查（反向验证抓到过）。
+    # 6 位码 = 10^6 种，窗口内预算放得太大等于没有限流，所以数值本身也要卡住。
+    m_budget = re.search(r"PAIR_MAX_FAILURES\s*=\s*([0-9_.e+]+)", idx or "")
+    budget = None
+    if m_budget:
+        try:
+            budget = float(m_budget.group(1).replace("_", ""))
+        except ValueError:
+            budget = None
+    budget_ok = bool(budget is not None and 1 <= budget <= 100)
+    check(budget_ok, "桥·配对预算合理",
+          "配对失败预算在 1–100 之间（窗口内），相对 10^6 的码空间才有意义",
+          "配对失败预算被判成 %s —— 太大等于无限流，6 位码可穷举" % m_budget.group(1) if m_budget
+          else "找不到 PAIR_MAX_FAILURES 的数值")
+
+    # 皇冠：公网侧的 /bridge-info.json 绝不能下发 token 或配对码。
+    # 判据是「同一个 if 分支里只有 isLoopback 才带 token」这种结构，太脆；
+    # 改成查公网返回对象里出现 auth:'pair' 且该返回块内不含 token 字段。
+    public_branch = re.search(
+        r"auth:\s*'pair',(.{0,400}?)\}\)", idx or "", re.S)
+    leaked = []
+    if not public_branch:
+        leaked.append("找不到公网分支（auth:'pair'）")
+    else:
+        body = public_branch.group(1)
+        if re.search(r"\btoken\b", body):
+            leaked.append("公网分支正文里出现 token 字段")
+        if re.search(r"\bpairCode\b", body):
+            leaked.append("公网分支正文里出现 pairCode 字段")
+    check(not leaked, "桥·公网不下发密钥",
+          "公网侧 /bridge-info.json 只回元信息 + auth:'pair'，绝不下发 token 或配对码",
+          "公网引导端点会泄漏凭据：%s（等于把服务白送公网）" % leaked)
+
+    # 配对码只能出现在 loopback 分支与日志里，不能进静态前端
+    code_in_fe = []
+    for rel in ["app/app.js", "app/index.html"]:
+        t = read(ROOT / rel)
+        if t is None:
+            continue
+        # 前端只显示它从 loopback 读到的 pairCode 值，不许自己造码
+        if re.search(r"randomInt|Math\.random\(\).*pair", t or ""):
+            code_in_fe.append(rel + "(在前端生成配对码)")
+    check(not code_in_fe, "桥·配对码只在服务端",
+          "配对码由服务端 randomInt 生成，前端只负责显示/输入，不自行生成",
+          "前端自己造配对码：%s" % code_in_fe)
+
+    # 前端必须真的接了三态之外的「待配对」态，否则手机会被当成 Demo
+    pair_fe = []
+    if ajs is None:
+        pair_fe.append("app.js 缺失")
+    else:
+        for s in ["pairWithCode", "pairNeeded"]:
+            if s not in ajs:
+                pair_fe.append(s)
+        # 配对请求是真调用：前端用相对路径 fetch("pair")，不能只看字符串出现过
+        if not re.search(r"fetch\(\s*['\"][^'\"]*pair['\"]", ajs):
+            pair_fe.append('fetch("pair") 实调用')
+    check(not pair_fe, "桥·前端待配对态",
+          "app.js 有 pairWithCode / pairNeeded / 真发出 POST pair，手机未配对时给出配对引导而不是退回 Demo",
+          "前端缺待配对态接线：%s" % pair_fe)
+
+    # 配置默认值就是安全默认：publicAccess 只能由 patch 显式打开
+    default_false = bool(idx and re.search(r"config\.publicAccess\s*===\s*true", idx))
+    check(default_false, "桥·公网默认关闭",
+          "publicAccess 必须显式 === true 才打开（默认关；关掉即退回只认 loopback）",
+          "publicAccess 默认值的判定被放宽了 —— 公网模式可能默认开启")
+
 
 REPRO = [
     ("guilin-example.md", "第 1 轮首轮提问",

@@ -18,16 +18,33 @@
  *
  * 安全边界（务必如实对外说明）
  * ----------------------------
- * - 只监听 loopback；Host 头必须是 loopback，否则 403（防 DNS rebinding）。
+ * - 默认只监听 loopback；Host 头必须是 loopback，否则 403（防 DNS rebinding）。
  * - 任何 `/v1/*` 都要 `Authorization: Bearer <token>`；token 每进程随机，
  *   只通过同源 `/bridge-info.json` 取。跨源 JS 读不到该 JSON（不发 CORS），
  *   所以别的网站无法把它当免费代理用。
  * - 不记录、不转发任何上游密钥；上游凭据边界始终在宿主进程内。
  * - 本机同用户的进程仍可读 `/bridge-info.json` 拿 token。这是「同机同用户
  *   即同信任域」的取舍，不是沙箱，README 里写清楚。
+ *
+ * 公网模式（`publicAccess: true`，给手机用）
+ * ----------------------------------------
+ * 手机访问不到 127.0.0.1，只能靠隧道（如 cloudflared）把公网域名指到本桥。
+ * 但隧道会把 Host 变成公网域名，于是有两件事必须同时成立才安全：
+ *
+ *  1. **Host 白名单**：只有 `publicHosts` 里显式列出的域名、或（开着
+ *     `allowQuickTunnel` 时）`*.trycloudflare.com` 才放行。光看「不是 loopback
+ *     就拒绝」在公网模式下等价于把服务交给任何能构造 Host 头的人。
+ *  2. **主 token 绝不出公网**。`/bridge-info.json` 在公网侧只回报元信息
+ *     （`auth: 'pair'`），**不返回 token**；手机必须先拿「配对码」
+ *     调 `POST /pair` 换一张**会话令牌**，`/v1/*` 接受主 token 或会话令牌。
+ *     配对码是本桥启动时随机生成的 6 位数字，只在 loopback 的
+ *     `/bridge-info.json` 与宿主日志里出现 —— 也就是**只能从电脑上看**。
+ *     配对尝试失败有次数上限，防止对着公网爆破 6 位码。
+ *
+ * 换句话说：知道隧道 URL 的人拿不到 token；必须同时能在电脑上看到配对码。
  */
 import http from 'node:http'
-import { randomBytes } from 'node:crypto'
+import { randomBytes, randomInt, timingSafeEqual } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -99,9 +116,45 @@ export function apply(ctx, config = {}) {
   const token = randomBytes(32).toString('base64url')
   let listening = null
 
+  // ---- 公网模式（给手机用）----
+  const publicAccess = config.publicAccess === true
+  const allowQuickTunnel = publicAccess && config.allowQuickTunnel === true
+  const publicHosts = Array.isArray(config.publicHosts)
+    ? config.publicHosts.map((h) => String(h).trim().toLowerCase()).filter(Boolean)
+    : []
+  /** 6 位配对码：只在 loopback 的 /bridge-info.json 与宿主日志里出现。 */
+  const pairCode = String(randomInt(0, 1000000)).padStart(6, '0')
+  /** 会话令牌 → 签发时间。手机配对后拿到它，重启桥即全部失效。 */
+  const sessions = new Map()
+  const SESSION_TTL_MS = 30 * 24 * 3600 * 1000
+  const MAX_SESSIONS = 32
+  /** 配对爆破预算：滑动窗口内失败太多次就锁一段时间。 */
+  const pairFailures = []
+  const PAIR_WINDOW_MS = 10 * 60 * 1000
+  const PAIR_MAX_FAILURES = 10
+
+  const guard = {
+    publicAccess,
+    allowQuickTunnel,
+    publicHosts,
+    pairCode,
+    sessions,
+    SESSION_TTL_MS,
+    MAX_SESSIONS,
+    pairFailures,
+    PAIR_WINDOW_MS,
+    PAIR_MAX_FAILURES,
+  }
+
+  if (publicAccess) {
+    // 配对码要让人能在电脑上看到；写进宿主日志是唯一不依赖界面的途径。
+    log(`public access enabled; pairing code = ${pairCode}`)
+    log('open the bridge from this machine to read the code, then enter it on the phone')
+  }
+
   const server = http.createServer((req, res) => {
     // 任何异常都不许把宿主进程带崩：统一兜一个 500。
-    handle(ctx, req, res, { config, limits, token }).catch((error) => {
+    handle(ctx, req, res, { config, limits, token, guard }).catch((error) => {
       try {
         if (!res.headersSent) sendJson(res, 500, { error: { message: describe(error) } })
         else res.end()
@@ -148,35 +201,48 @@ export function apply(ctx, config = {}) {
 /* ------------------------------------------------------------------ */
 
 async function handle(ctx, req, res, state) {
-  const { config, limits, token } = state
+  const { config, limits, token, guard } = state
 
-  // 1) Host 必须是 loopback —— 唯一能挡住 DNS rebinding 的检查。
-  if (!isLoopbackHost(req.headers.host)) {
-    return sendJson(res, 403, { error: { message: 'Host header must name the loopback interface' } })
+  // 1) Host 校验 —— 挡 DNS rebinding，并区分「本机」与「公网隧道」。
+  const isLoopback = isLoopbackHost(req.headers.host)
+  if (!isLoopback && !isPublicHost(req.headers.host, guard)) {
+    return sendJson(res, 403, { error: { message: 'Host header must name the loopback interface or a configured public host' } })
   }
 
   const url = new URL(req.url ?? '/', `http://${req.headers.host ?? '127.0.0.1'}`)
   const route = url.pathname
 
   // 2) 同源引导端点：不带 token，但不发 CORS 头，跨源 JS 读不到正文。
+  //    公网侧只给元信息与 auth:'pair'，**绝不下发 token 或配对码**。
   if (route === '/bridge-info.json') {
     const routeNow = resolveRoute(ctx, config)
-    return sendJson(res, 200, {
+    const base = {
       ok: true,
       service: 'xinglv-llm-bridge',
       version: 1,
       provider: routeNow.provider,
       model: routeNow.model,
       reasoningEffort: routeNow.reasoningEffort,
-      auth: 'bearer',
-      token,
-      note: 'token 每进程随机；仅同源页面可读取本 JSON。',
+    }
+    if (isLoopback) {
+      return sendJson(res, 200, {
+        ...base,
+        auth: 'bearer',
+        token,
+        ...(guard?.publicAccess ? { pairCode: guard.pairCode } : {}),
+        note: 'token 每进程随机；仅同源页面可读取本 JSON。',
+      })
+    }
+    return sendJson(res, 200, {
+      ...base,
+      auth: 'pair',
+      note: '公网访问需要先配对：在电脑上打开本页读取配对码，再在手机上输入。',
     })
   }
 
   if (route === '/healthz') return sendJson(res, 200, { ok: true })
 
-  // 3) 静态前端（白名单）。
+  // 3) 静态前端（白名单）。公网模式放行，手机才能下载页面。
   const asset = APP_FILES.get(route)
   if (asset && (req.method === 'GET' || req.method === 'HEAD')) {
     try {
@@ -192,8 +258,13 @@ async function handle(ctx, req, res, state) {
     }
   }
 
-  // 4) 其余一律要 bearer。
-  if (!bearerOk(req.headers.authorization, token)) {
+  // 4) 配对：用 6 位码换一张会话令牌。带爆破预算。
+  if (route === '/pair' && req.method === 'POST') {
+    return handlePair(req, res, guard)
+  }
+
+  // 5) 其余一律要凭据：本机主 token，或配对换来的会话令牌。
+  if (!isAuthorized(req.headers.authorization, token, guard)) {
     return sendJson(res, 401, {
       error: { message: 'missing or invalid Authorization bearer', type: 'unauthorized', code: 'unauthorized' },
     })
@@ -360,23 +431,131 @@ async function collect(ctx, route, messages, payload) {
 
 function isLoopbackHost(hostHeader) {
   if (typeof hostHeader !== 'string' || hostHeader.length === 0) return false
+  const name = hostNameOf(hostHeader)
+  return name === '127.0.0.1' || name === 'localhost' || name === '::1'
+}
+
+/** 取 Host 头里的主机名（去掉端口与 IPv6 方括号），统一小写。 */
+function hostNameOf(hostHeader) {
+  if (typeof hostHeader !== 'string' || hostHeader.length === 0) return ''
   const name = hostHeader.startsWith('[')
     ? hostHeader.slice(1, hostHeader.indexOf(']'))
     : hostHeader.split(':')[0]
-  const lowered = String(name).toLowerCase()
-  return lowered === '127.0.0.1' || lowered === 'localhost' || lowered === '::1'
+  return String(name).toLowerCase()
+}
+
+/**
+ * 公网 Host 白名单。**只有显式列出的域名才算**；`allowQuickTunnel` 额外放行
+ * `*.trycloudflare.com`。注意 quick tunnel 的域名每次启动都变，所以无法预先
+ * 枚举 —— 这正是需要一个显式开关的原因：默认关闭，且即使打开，公网侧也
+ * 拿不到主 token，必须配对。
+ */
+function isPublicHost(hostHeader, guard) {
+  if (!guard?.publicAccess) return false
+  const name = hostNameOf(hostHeader)
+  if (!name) return false
+  if (guard.publicHosts.includes(name)) return true
+  if (guard.allowQuickTunnel) {
+    // 只接受 `xxx.trycloudflare.com` 这一层子域，且必须是靠后缀判断，
+    // 否则 `evil-trycloudflare.com` 之类会被误放行。
+    return /^[a-z0-9-]+\.trycloudflare\.com$/.test(name)
+  }
+  return false
 }
 
 function bearerOk(header, token) {
   if (typeof header !== 'string') return false
   const match = /^Bearer\s+(.+)$/i.exec(header.trim())
   if (!match) return false
-  const got = Buffer.from(match[1])
-  const want = Buffer.from(token)
-  if (got.length !== want.length) return false
-  let diff = 0
-  for (let i = 0; i < want.length; i += 1) diff |= got[i] ^ want[i]
-  return diff === 0
+  return safeEqual(match[1], token)
+}
+
+/** 定长比较：先把长度差异也走一遍循环，避免按长度短路泄露信息。 */
+function safeEqual(got, want) {
+  const a = Buffer.from(String(got))
+  const b = Buffer.from(String(want))
+  if (a.length !== b.length) return false
+  try {
+    return timingSafeEqual(a, b)
+  } catch {
+    return false
+  }
+}
+
+/** 主 token（仅本机用）或任一会话令牌（配对得来）都算授权。 */
+function isAuthorized(header, token, guard) {
+  if (bearerOk(header, token)) return true
+  if (!guard) return false
+  const match = /^Bearer\s+(.+)$/i.exec(typeof header === 'string' ? header.trim() : '')
+  if (!match) return false
+  const got = match[1]
+  const now = Date.now()
+  for (const [tokenValue, issuedAt] of guard.sessions) {
+    if (now - issuedAt > guard.SESSION_TTL_MS) {
+      guard.sessions.delete(tokenValue)
+      continue
+    }
+    if (safeEqual(got, tokenValue)) return true
+  }
+  return false
+}
+
+/** 清掉过期会话，并保证会话表不会无限增长。 */
+function pruneSessions(guard, now = Date.now()) {
+  for (const [value, issuedAt] of guard.sessions) {
+    if (now - issuedAt > guard.SESSION_TTL_MS) guard.sessions.delete(value)
+  }
+  while (guard.sessions.size >= guard.MAX_SESSIONS) {
+    const oldest = guard.sessions.keys().next()
+    if (oldest.done) break
+    guard.sessions.delete(oldest.value)
+  }
+}
+
+/**
+ * POST /pair { code } → { token, expiresIn }
+ *
+ * 配对码只在 loopback 的 `/bridge-info.json` 与宿主日志里出现，所以
+ * 「知道公网 URL」本身不足以换到令牌。窗口内失败太多次就锁一段时间，
+ * 免得 6 位码被穷举（10^6 空间在 unlimited 尝试下几分钟就跑完）。
+ */
+async function handlePair(req, res, guard) {
+  if (!guard || !guard.publicAccess) {
+    return sendJson(res, 404, { error: { message: 'pairing is disabled (publicAccess=false)', code: 'not_found' } })
+  }
+
+  const now = Date.now()
+  while (guard.pairFailures.length > 0 && now - guard.pairFailures[0] > guard.PAIR_WINDOW_MS) {
+    guard.pairFailures.shift()
+  }
+  if (guard.pairFailures.length >= guard.PAIR_MAX_FAILURES) {
+    return sendJson(res, 429, {
+      error: { message: 'too many pairing attempts, try again later', code: 'rate_limited' },
+    })
+  }
+
+  const payload = await readJsonBody(req, 4096)
+  const code = typeof payload?.code === 'string' ? payload.code.trim() : String(payload?.code ?? '')
+  if (!/^\d{6}$/.test(code)) {
+    guard.pairFailures.push(now)
+    return sendJson(res, 400, { error: { message: 'code must be 6 digits', code: 'bad_request' } })
+  }
+  if (!safeEqual(code, guard.pairCode)) {
+    guard.pairFailures.push(now)
+    // 不回显「差几位」，也不回显正确码。
+    return sendJson(res, 401, { error: { message: 'pairing code does not match', code: 'unauthorized' } })
+  }
+
+  guard.pairFailures.length = 0
+  const sessionToken = randomBytes(32).toString('base64url')
+  pruneSessions(guard)
+  guard.sessions.set(sessionToken, now)
+  log(`paired a new device (active sessions: ${guard.sessions.size})`)
+  return sendJson(res, 200, {
+    ok: true,
+    token: sessionToken,
+    expiresIn: Math.floor(guard.SESSION_TTL_MS / 1000),
+  })
 }
 
 function readJsonBody(req, limit) {

@@ -10,6 +10,7 @@
     CONVS: "xinglv.convs.v1",
     CURRENT: "xinglv.current.v1",
     WORKER: "xinglv.worker.v1",
+    BRIDGE_TOKEN: "xinglv.bridge.v1",
   };
 
   // localStorage 在 file:// / 隐私模式 / 部分 standalone 下会抛 SecurityError，
@@ -218,14 +219,18 @@
     // 所以 lead 也要按连接状态分流，只有真的没连才自称 Demo。
     var lead = bridge
       ? "本机桥已连接（当前模型 " + esc(bridge.model || "DSH 默认") + "）。下面这份是仓库里已核实的静态样例，先看格式用——直接发消息就会实时生成，不会再给样例。"
-      : (fromOffline
-        ? "当前离线，未调用 LLM。下面是仓库里已核实的静态样例（非实时生成）："
-        : "Demo 模式：没连 LLM，展示的是仓库里已核实、已上 CI 的静态成品（样例，非本次生成）。");
+      : (pairNeeded
+        ? "这台设备还没配对（隧道已通，但没拿会话令牌）。先在设置里输入电脑上显示的 6 位配对码——下面这份是静态样例，不是给本次输入生成的。"
+        : (fromOffline
+          ? "当前离线，未调用 LLM。下面是仓库里已核实的静态样例（非实时生成）："
+          : "Demo 模式：没连 LLM，展示的是仓库里已核实、已上 CI 的静态成品（样例，非本次生成）。"));
     var howTo = bridge
       ? "本机桥已连接，直接发消息即可用当前模型。"
-      : (isLoopbackOrigin()
-        ? "本机桥没起来（DSH 未运行或插件未装），可在 ⚙ 设置里填 Worker 地址。"
-        : "要实时生成，请在 ⚙ 设置里填 Worker 地址；若在本机打开 http://127.0.0.1 的页面，则自动用当前模型。");
+      : (pairNeeded
+        ? "在 ⚙ 设置里输入配对码，配对后就能用 DSH 当前模型。"
+        : (isLoopbackOrigin()
+          ? "本机桥没起来（DSH 未运行或插件未装），可在 ⚙ 设置里填 Worker 地址。"
+          : "要实时生成，请在 ⚙ 设置里填 Worker 地址；若在本机打开 http://127.0.0.1 的页面，则自动用当前模型。"));
     return "<blockquote class=\"warn\">" + esc(lead) + "</blockquote>" +
       "<div class=\"shell\"><span class=\"mode-tag\">plan</span>一句话结论：桂林阳朔 3 天 2 夜，2 人，总预算 ¥3000，走均衡档 2 人 ¥2,758 / 人均 ¥1,379，余 ¥242。</div>" +
       "<p>要点：<strong>三档骨架</strong>（省钱 ¥2,006 / 均衡 ¥2,758 / 深度 ¥3,660）、<strong>逐日表</strong>、<strong>⚠️ 待核实清单</strong>，每个数字可加总、查不到就如实标注。</p>" +
@@ -281,29 +286,69 @@
    *   Worker：GitHub Pages 上的页面 → 打 {workerUrl}/api/chat。
    * 桥必须自己发页面，因为 https 页面根本连不上 http 的 127.0.0.1。
    */
-  var bridge = null; // { token, provider, model } —— 探测到才非空
+  var bridge = null; // { token, provider, model, paired } —— 探测到才非空
+  var pairNeeded = false; // 公网打不开：需要输入配对码
   var BRIDGE_HOSTS = { "127.0.0.1": 1, "localhost": 1, "[::1]": 1 };
 
   function isLoopbackOrigin() {
     try { return !!BRIDGE_HOSTS[location.hostname]; } catch (e) { return false; }
   }
 
+  /** 本机页面直接带 token；公网页面只能拿会话令牌，且要先配对。 */
   function probeBridge() {
-    if (!isLoopbackOrigin()) return Promise.resolve(null);
+    // 不按 hostname 猜：桥在自己同源伺服页面，Pages 上没有这个端点（404 → null）。
     return fetch("bridge-info.json", { cache: "no-store" })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (info) {
-        if (info && info.ok && typeof info.token === "string") {
+        if (!info || !info.ok) return null;
+        var meta = { provider: info.provider || "", model: info.model || "" };
+
+        if (typeof info.token === "string") {
+          // 本机直连：主 token 只在 loopback 下发；配对码也只在 loopback 出现。
           bridge = {
             token: info.token,
-            provider: info.provider || "",
-            model: info.model || "",
+            provider: meta.provider,
+            model: meta.model,
+            paired: false,
+            pairCode: typeof info.pairCode === "string" ? info.pairCode : "",
           };
+          pairNeeded = false;
           return bridge;
         }
+
+        if (info.auth === "pair") {
+          var saved = getLS(LS.BRIDGE_TOKEN);
+          if (saved) {
+            bridge = { token: saved, provider: meta.provider, model: meta.model, paired: true };
+            pairNeeded = false;
+            return bridge;
+          }
+          pairNeeded = true;
+          return null;
+        }
+
         return null;
       })
       .catch(function () { return null; });
+  }
+
+  /** 用配对码换会话令牌；成功则落 localStorage（重启浏览器仍可用）。 */
+  function pairWithCode(code) {
+    return fetch("pair", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: code }),
+    })
+      .then(function (res) {
+        return res.json().catch(function () { return null; }).then(function (data) {
+          if (!res.ok || !data || typeof data.token !== "string") {
+            var e = (data && data.error) || {};
+            throw new Error(e.message || ("HTTP " + res.status));
+          }
+          setLS(LS.BRIDGE_TOKEN, data.token);
+          return probeBridge();
+        });
+      });
   }
 
   /** 统一返回 Promise<{ text }> 或 reject(Error)。 */
@@ -411,7 +456,16 @@
       showDemoIntro(true);
       return;
     }
-    if (!bridge && !workerUrl) { typedMessage(text); demoAnswer(text); return; }
+    if (!bridge && !workerUrl) {
+      typedMessage(text);
+      if (pairNeeded) {
+        // 隧道通了但没配对：明确要配对码，别假装成 Demo 或在线。
+        addBubble("system", "这台设备还没配对。请在设置里输入电脑上显示的 6 位配对码，配对后才能用 DSH 当前模型。", { noCollapse: true });
+        return;
+      }
+      demoAnswer(text);
+      return;
+    }
     sendLive(text);
   }
 
@@ -439,6 +493,7 @@
     $("worker-url").value = workerUrl;
     settingsStatus.textContent = "";
     $("btn-install").hidden = !deferredInstall;
+    refreshPairBlock();
     showPanel("settings-panel", "panel-mask");
   });
   $("btn-settings-close").addEventListener("click", closePanels);
@@ -474,13 +529,64 @@
       modeBtn.textContent = "模式：本机 " + (bridge.model || "当前模型");
       modeBtn.classList.add("live");
       modeBtn.classList.remove("bridge-local");
-      modeBtn.title = "经由 DSH 当前模型（" + (bridge.provider || "?") + "：" + (bridge.model || "?") + "）";
+      modeBtn.title = "经由 DSH 当前模型（" + (bridge.provider || "?") + "：" + (bridge.model || "?") + "）"
+        + (bridge.paired ? "　· 已配对的手机" : "");
+      return;
+    }
+    if (pairNeeded) {
+      // 公网隧道打开了，但这台设备还没配对：别谎称在线，也别退化成 Demo。
+      modeBtn.textContent = "模式：待配对";
+      modeBtn.classList.remove("live");
+      modeBtn.title = "这台设备还没配对：在设置里输入电脑上显示的 6 位配对码";
       return;
     }
     var live = !!workerUrl;
     modeBtn.textContent = live ? "模式：在线" : "模式：Demo";
     modeBtn.classList.toggle("live", live);
     modeBtn.removeAttribute("title");
+  }
+
+  /* ---------- 配对（手机经隧道访问时用） ---------- */
+  function refreshPairBlock() {
+    var pairForm = $("pair-block");
+    // 手机：需要输入配对码时才显示表单。
+    if (pairForm) pairForm.hidden = !pairNeeded || !!bridge;
+    // 电脑：把这次运行的配对码显示出来，手机要照着输。
+    var show = $("pair-code-show");
+    if (show) {
+      var code = bridge && !bridge.paired ? (bridge.pairCode || "") : "";
+      show.hidden = !code;
+      var value = $("pair-code-value");
+      if (value) value.textContent = code || "------";
+    }
+  }
+  var pairBtn = $("btn-pair");
+  if (pairBtn) {
+    pairBtn.addEventListener("click", function () {
+      var codeInput = $("pair-code");
+      var status = $("pair-status");
+      var code = (codeInput.value || "").trim();
+      if (!/^\d{6}$/.test(code)) { status.textContent = "请输入 6 位数字配对码。"; return; }
+      status.textContent = "正在配对…";
+      pairBtn.disabled = true;
+      pairWithCode(code)
+        .then(function (info) {
+          pairBtn.disabled = false;
+          if (info) {
+            status.textContent = "配对成功，已记住这台设备。";
+            codeInput.value = "";
+            updateMode(); refreshPairBlock();
+            closePanels();
+            chat.innerHTML = ""; renderConversation();
+          } else {
+            status.textContent = "配对码正确但拿不到令牌，请重试。";
+          }
+        })
+        .catch(function (err) {
+          pairBtn.disabled = false;
+          status.textContent = "配对失败：" + (err && err.message ? err.message : "未知错误");
+        });
+    });
   }
 
   /* ---------- 历史 ---------- */
@@ -544,9 +650,15 @@
   // 探测失败（比如从 GitHub Pages 打开）就保持 Worker / Demo 逻辑不变。
   probeBridge().then(function (info) {
     updateMode();
+    refreshPairBlock();
     if (info) {
-      settingsStatus.textContent = "已连上本机 DSH 当前模型：" + (info.model || "") + "（无需 Worker、无需 API Key）。";
+      settingsStatus.textContent = info.paired
+        ? "已用配对令牌连上 DSH 当前模型：" + (info.model || "") + "（手机经隧道访问）。"
+        : "已连上本机 DSH 当前模型：" + (info.model || "") + "（无需 Worker、无需 API Key）。";
       renderConversation();
+    } else if (pairNeeded) {
+      // 隧道可用但缺令牌：直接把设置面板打开到配对区，省得用户找。
+      settingsStatus.textContent = "这台设备还没配对，请在上方输入配对码。";
     }
   });
 })();

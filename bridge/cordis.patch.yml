@@ -18,3 +18,15 @@
         maxMessages: 20
         maxTotalChars: 8000
         maxMessageChars: 4000
+        # 公网模式（给手机用）。手机访问不到 127.0.0.1，只能靠隧道
+        # （cloudflared 等）把公网域名指到本桥。
+        #
+        # 打开后：Host 变成公网域名也放行，但**公网侧拿不到主 token**，
+        # 必须先配对（电脑上读 6 位码 → 手机输入 → 换会话令牌）。
+        # 关掉（false）则退回到「只认 loopback」，与本插件最初的行为一致。
+        publicAccess: true
+        # quick tunnel 的域名每次启动都变，无法预先写进 publicHosts；
+        # 只有打开这个开关才放行 `*.trycloudflare.com`。
+        allowQuickTunnel: true
+        # 若用固定域名的命名隧道，把域名写在这里（小写，不含协议与端口）。
+        publicHosts: []

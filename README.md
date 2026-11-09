@@ -50,7 +50,7 @@
 │   ├── facts.json               # 易过期事实台账（claim + verified_on + source_url）
 │   ├── cases.json               # 行为回放用例（不判分只留痕）
 │   ├── replay.py                # 行为回放操作卡：list / prompt / trace
-│   ├── regress.py               # 一次性静态自检脚本（PASS 240 / FAIL 0）
+│   ├── regress.py               # 一次性静态自检脚本（PASS 247 / FAIL 0）
 │   └── report.md                # 最近一次回归报告
 ├── hangzhou-5d-budget.md        # 杭州 5 天预算原始底稿
 ├── perfect-trip-card.png        # 桂林阳朔 3 天 2 夜「完美攻略」成品卡
@@ -216,6 +216,36 @@ cd C:/ai/agent/cardtest
   目检还抓到一处自相矛盾：桥连通时横幅仍写「Demo 模式：没连 LLM」，与顶栏
   「模式：本机 deepseek-v4.1-flash」打架 —— 已修，并把 `CACHE_VERSION` 升到 `xinglv-v3`
   （否则 SW 的 stale-while-revalidate 会继续吐旧 `app.js`，第一次重截图的 sha256 完全没变就是证据）。
+
+**2026-11-09 补的第八层（PASS 240 → 247）：让手机也能用 —— 公网隧道 + 配对码**。
+上一层的桥只绑 `127.0.0.1`，手机访问不到（这是当时如实说明的限制）。第八层把它打开：
+
+- `cloudflared` quick tunnel 实测能注册（`protocol=http2`；默认 QUIC 在本机出站被挡，
+  precheck 报 `Allow outbound QUIC traffic on port 7844 or use HTTP2`），公网域名经隧道
+  落到本桥。第一次跑返回 **403 `Host header must name the loopback interface`** ——
+  也就是**隧道本身是通的，唯一阻塞是桥自己的 Host 校验**。
+- 于是改两件事，缺一不可：
+  1. **Host 白名单**：只有 `publicHosts` 里显式列出的域名、或开了 `allowQuickTunnel` 时
+     匹配 `^[a-z0-9-]+\.trycloudflare\.com$`（**精确一层子域**，防 `evil-trycloudflare.com`）
+     才放行。光把「非 loopback 就拒」改成全放行，等于把服务交给任何会构造 Host 头的人。
+  2. **主 token 绝不出公网**：公网侧 `/bridge-info.json` 只回元信息 + `auth:'pair'`，
+     **不下发 token、更不下发配对码**。手机先拿 6 位**配对码**调 `POST /pair` 换**会话令牌**
+     （30 天 TTL，进程重启全失效）；配对码由 `randomInt(0,1000000)` 生成，只出现在
+     **loopback 的 `/bridge-info.json` 和宿主日志**里 —— 即「只能从电脑上看到」。
+     配对失败有滑动窗口预算（10 分钟 10 次 → 429），否则 10^6 的码空间几分钟就被穷举。
+- 前端从三态扩成四态：**本机直连 > 已配对 > 待配对 > Worker > Demo**。手机未配对时
+  明确说「输入配对码」，不再谎称在线也不退化成 Demo。
+- `publicAccess` 默认 `false`，关掉即完全退回「只认 loopback」，与原行为一致。
+- **端到端实测（经真实公网隧道）**：公网 `/bridge-info.json` 无 token/无配对码 → 静态
+  PWA 外壳 6 个文件全 200 → 错码 401、正确码换到 43 字符会话令牌 → 用会话令牌
+  `/v1/models` 200 → `POST /v1/chat/completions` 问「只回答两个字：收到」得 **`收到`**
+  （`model=deepseek-v4.1-flash`）→ 行为验证问角色名答 **`行旅`**（提示词确实注入）。
+  无凭据仍 401。`bridge/test.mjs` **PASS 34 / FAIL 0**（新增 16 条公网用例）。
+- **`[L]` 从 11 条扩到 16 条**，新增 5 条全是公网安全看门狗。反向验证又抓到
+  2 个**我自己写弱了的断言**：① 「配对限流」原只查 `PAIR_MAX_FAILURES` 常量存在，
+  把它改成 `1e9`（等于无限流）依然通过 → 补「数值必须落在 1–100」；
+  ② 同一条只查常量名，删掉真正的 429 分支也不报 → 补「比较式 + 429 实调用」。
+  这说明**断言只查「名字在不在」几乎总是假的**。
 
 **2026-11-05 加 CI 门禁**：上面这套自检再好用，也只在本地、只在人记得跑的时候生效。
 新增 `.github/workflows/regress.yml`，push / PR 自动跑 `regress.py` 当门禁并上传报告 artifact。

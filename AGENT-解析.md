@@ -276,8 +276,8 @@
 | `hangzhou-example.md` | 215 | deal / prep / ontrip / review 四模式 · 18 个检查点 |
 | `team-example.md` | 201 | 多角色冲突裁决 · 9 个检查点 |
 | `bangkok-example.md` | 286 | 境外变体（签证/汇率/时差/现金门槛）· 19 个检查点 |
-| `regress.py` | 1359 | 一次性自检脚本（十二块检查，详见第 5 节） |
-| `report.md` | 270 | 最近一次回归报告（PASS 240 / FAIL 0 / INFO 2） |
+| `regress.py` | 1457 | 一次性自检脚本（十二块检查，详见第 5 节） |
+| `report.md` | 277 | 最近一次回归报告（PASS 247 / FAIL 0 / INFO 2） |
 
 检查点合计 **63 条**（17+18+9+19）。
 
@@ -298,7 +298,7 @@
 | 多角色 | 贴「三个角色的原始交付」整段 | 埋 5 个坑：住宿单位、合计 3420 与分项 3400 差 20、规划员越权估竹筏 ¥75、D3 排不下刘三姐；**餐饮 650 是合理估算属干扰项，不该判错** |
 | 曼谷 | 「12 月中去曼谷玩几天，从深圳走，两个人，预算你看着办」→「12/17-12/20 行，护照没问题，人均 3000 含机票」 | 境外四件事、TDAC 72 小时窗、20 泰铢「谁有资格」、门槛值≠消费值、汇率取整口径 |
 
-### 5.3 `regress.py` 十二块检查（1359 行）
+### 5.3 `regress.py` 十二块检查（1457 行）
 - **[A] 提示词结构**：20 个必需一级章节按内容匹配（不按行号，行号会漂移）、7 张图卡规格小节、**21 条硬规则关键词**（每条对应真实翻车点）、出境卡 5 个附加块。
 - **[B] 数字重算**（用 Python 把基准自己也算一遍，防「假基准」）：
   - 桂林 `g=[275.5*2*2, 336*3, 650, 200*2, 240]` → `sum=3400`、人均 `1700`、人均分项 `[551,504,325,200,120]`；三档 `[1336,1700,2336]`。
@@ -312,7 +312,22 @@
 - **[I] 记账内核（2026-11-07 新增）**：`check_ledger()` 从源码 `compile()` 加载 `cardtest/ledger.py`，断言 `PLAN == canonical(1102/1008/650/400/240=3400)`、`add_entry` 的 `amount` 必填无默认值（金额来自用户）、`compute()` 与 `ledger-golden.json` 的 3 笔演示账对账、空账本 0 笔 ¥0、以及「入库 `guilin-spend.html` == `render_spend(空账本)`」。兑现 spend 承诺的同时，把旧卡 ¥3,700 的真 bug 一起修掉。
 - **[J] 行为回放（2026-11-07 新增）**：`check_replay()` 验 `cases.json` 的 schema / 5 用例 / id 去重 / source 指向存在 / 字段齐全 / 「不判分」声明还在，以及 `replay.py` 提供 list/prompt/trace。**只验结构，不给行为判分**——行为层非确定性，自动判分只会造假绿灯。
 - **[K] 应用一致性（2026-11-07 新增）**：`check_app()` 的**皇冠门禁**是 `worker/src/prompt.js` 内嵌字符串与 `travel-agent.md` 逐字节一致（改提示词忘了重跑 `tools/build-system-prompt.mjs` 必 FAIL）；另验 builder 存在、wrangler 三变量在场且无密钥字面量、manifest 合法 JSON 含必需键、sw.js 9 项 APP_SHELL 齐且文件真实存在且 `/api/chat` 不缓存、worker 转发骨架关键字、2 图标与 Demo 样例成品。**凭据扫描正则自带活体样例**（否则「0 命中」可能只是正则被改松后的假绿），只扫部署运行时代码/配置、排除文档与测试文件。
-- **[L] 本机模型桥（2026-11-08 新增）**：`check_bridge()` 管 `bridge/`。桥最容易坏的方式不是崩，而是**悄悄说错话**，所以 11 条断言逐条对应一种失效：`package.json` 的 `dsh.bundle.patch` 与 `exports` 里的 `./locale/*.json`、`./icon`（官方清单硬要求，漏了装上也读不到标题/图标）；`cordis.patch.yml` 的端口必须在 `index.js` 里也找得到（改一处忘另一处的静默漂移）；六个关键件必须全在（`ctx.llm.stream` / `isLoopbackHost` / `bearerOk` / `randomBytes` / 从 `prompt.js` 读提示词 / 处理并丢弃客户端 `system`）；桥读提示词的路径必须仍是 `worker/src/prompt.js`（否则出现**第二份真值源**，[K] 的逐字节门禁就管不到它了）；locale 的 `meta.title/description` 不能是模板占位；桥源码 0 密钥形态；前端三态（`probeBridge` / `bridge-info.json` / `sendToBackend` / `isLoopbackOrigin`）与 `updateMode()` **函数体内的**桥优先；sw.js 用 `endsWith()` **实调用**排除 `/api/chat`、`/v1/chat/completions`、`/bridge-info.json`。
+- **[L] 本机模型桥（2026-11-08 新增）**：`check_bridge()` 管 `bridge/`。桥最容易坏的方式不是崩，而是**悄悄说错话**，所以 16 条断言逐条对应一种失效：`package.json` 的 `dsh.bundle.patch` 与 `exports` 里的 `./locale/*.json`、`./icon`（官方清单硬要求，漏了装上也读不到标题/图标）；`cordis.patch.yml` 的端口必须在 `index.js` 里也找得到（改一处忘另一处的静默漂移）；六个关键件必须全在（`ctx.llm.stream` / `isLoopbackHost` / `bearerOk` / `randomBytes` / 从 `prompt.js` 读提示词 / 处理并丢弃客户端 `system`）；桥读提示词的路径必须仍是 `worker/src/prompt.js`（否则出现**第二份真值源**，[K] 的逐字节门禁就管不到它了）；locale 的 `meta.title/description` 不能是模板占位；桥源码 0 密钥形态；前端三态（`probeBridge` / `bridge-info.json` / `sendToBackend` / `isLoopbackOrigin`）与 `updateMode()` **函数体内的**桥优先；sw.js 用 `endsWith()` **实调用**排除 `/api/chat`、`/v1/chat/completions`、`/bridge-info.json`。
+- **[L] 扩到 16 条（2026-11-09，公网模式）**：新增 5 条全是**公网安全看门狗**，
+  因为 `publicAccess: true` 是本项目最危险的开关——它一旦打开而配对机制没跟上，
+  等于把「用你的额度跑模型」变成公网匿名接口。5 条分别是：公网模式关键件齐全
+  （`isPublicHost` / `'/pair'` / `randomInt` / `sessions` / `isAuthorized` / `PAIR_MAX_FAILURES`）、
+  **公网侧 `/bridge-info.json` 不得下发 token 或配对码**（正则切出 `auth: 'pair'` 那一支的
+  返回对象正文来查，不用整文件搜）、配对码只在服务端生成（前端不许自己造）、
+  前端「待配对」态真的接上了（`pairWithCode` / `pairNeeded` / `fetch("pair")` 实调用）、
+  配对限流**真的生效**（比较式 + 429 实调用 + 预算数值落在 1–100）。
+- **这一轮反向验证又抓到 2 个我自己写弱的断言**，比抓到代码 bug 更值得记：
+  ① 「配对限流」原本只查 `PAIR_MAX_FAILURES` 这个**常量名在不在**，
+     把它改成 `1e9`（等于没有限流）依然全绿；补「数值必须 1–100」才挡住。
+  ② 同上一条，删掉真正的 `if (...) return 429` 分支也不报错，因为常量还在；
+     补「比较式 + 429 实调用」才挡住。
+  → **教训：只查「某个名字/字符串在文件里出现过」的断言，几乎总是假的**。
+  这一条和上面第七层的三条（解析器 `startswith` 写错、整文件正则、注释充数）是同一类病。
 - **[L] 的反向验证抓到 3 个「断言自己不合格」**（都是验证器/断言的问题，不是桥的 bug，也正是为什么必须做反向验证）：
   ① FAIL 行真实形态是 markdown 列表项 `- ❌ \`section\` — msg`，反向验证脚本用 `startswith("❌")` 解析 → 永远得到 0 条，**整个反向验证变成假绿**；
   ② 「桥优先」原用整文件正则 `if \(\s*bridge\s*\)`，而 `sendToBackend` 里另有一个同形语句，于是 `updateMode()` 完全不看桥也能通过 → 改成先切出 `function updateMode(...){...}` 函数体再找；
@@ -364,7 +379,7 @@ exit 1；字节级还原 → exit 0。这样连「防复发断言被改坏」这
 （复用 provider/model/额度/重试/计量）。③ https 的 Pages 页访问不了 http 的 `127.0.0.1`
 （混合内容 + Private Network Access），所以**桥必须自己同源发 `app/`**，前端变成
 「本机桥 > Worker > Demo」三态。据此新增 `bridge/`（`index.js` + `cordis.patch.yml` +
-`locale/` + `icon.svg` + `test.mjs` 18 条离线单测）与 `[L]` 门禁（11 条）。
+`locale/` + `icon.svg` + `test.mjs` 34 条离线单测）与 `[L]` 门禁（16 条）。
 桥的两个真 bug 是测试抓到的：上游错误报文被透传给客户端（改为固定文案 + 只透传机器可读
 `code`）、以及**桥原本不注入 system 提示词**（等于让用户和裸模型对话，且客户端还能伪造 system 篡改提示词）。
 端到端实测的最后一环是**用行为验证提示词生效，而不是看 token 数**：问「你的角色名是什么」答「行旅」，
@@ -384,7 +399,7 @@ PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --report    # 落盘 report.md
 PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --emit-prompt  # 打印复现指令
 ```
 退出码 **0 = 全绿 / 1 = 有 FAIL**。`PYTHONIOENCODING=utf-8` 必须带（Windows 控制台默认 GBK，报告里的 ✅/❌ 会触发 `UnicodeEncodeError: 'gbk' codec can't encode character '\u274c'`）；脚本 `main()` 里也做了 `sys.stdout.reconfigure(encoding="utf-8")` 兜底。
-最近一次结果：**PASS 240 / FAIL 0 / INFO 2**。
+最近一次结果：**PASS 247 / FAIL 0 / INFO 2**。
 
 ### 5.6 判定标准（4 类，措辞不算退化，硬事实和口径算）
 | 类 | 要求 |
