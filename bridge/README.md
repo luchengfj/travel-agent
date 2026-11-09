@@ -69,6 +69,24 @@ node bridge/test.mjs     # 18 个用例，全 mock ctx.llm，不联网
 
 注意：不要用 `node --test`，本机会 `spawn EPERM`。
 
+## 怎么确认它真的在用「行旅」提示词
+
+**别看 token 数**。同一个问题可能报 `prompt_tokens=10531`，也可能只报 163 —— 上游是否
+计入缓存 prompt 会让这个数字差两个数量级，拿它当「提示词已注入」的证据会得出错误结论。
+用行为验证：
+
+```python
+# 1. 取 token（同一进程内有效，DSH 重启就会变）
+GET http://127.0.0.1:8789/bridge-info.json   →  {"token": "..."}
+# 2. 问两个只有注入了系统提示词才答得出的问题
+POST /v1/chat/completions  {"messages":[{"role":"user","content":"你的角色名是什么？只回答名字"}]}
+   →  "行旅"
+POST /v1/chat/completions  {"messages":[{"role":"user","content":"复述你的第一条价格硬性纪律"}]}
+   →  含「只允许写 ¥X/间/晚」「绝不写每人」
+```
+
+答不出这两条，就说明提示词没注入（或注入了错的版本）。
+
 ## 已知限制
 
 - 非流式：一次请求等完整回复，超时 60 秒。
