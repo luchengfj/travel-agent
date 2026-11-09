@@ -34,7 +34,7 @@
 !/examples/*.py
 !/examples/*.json
 
-# ── PWA 前端 / Worker 代理 / 构建工具 放行 ──
+# ── PWA 前端 / Worker 代理 / 构建工具 / 本机 LLM 桥 放行 ──
 !/.github/workflows/deploy-pages.yml
 !/app/
 !/app/**
@@ -42,6 +42,8 @@
 !/worker/**
 !/tools/
 !/tools/*.mjs
+!/bridge/
+!/bridge/**
 
 # ── 临时产物 / 缓存：即便名字匹配也要排除（必须放在放行之后才生效）──
 __pycache__/

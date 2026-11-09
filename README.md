@@ -35,6 +35,11 @@
 ├── worker/                      # Cloudflare Worker：LLM 代理（API Key 只在 secret）
 │   ├── src/index.js             # /api/chat，前置注入 system=travel-agent.md
 │   └── src/prompt.js            # build-system-prompt.mjs 生成的提示词副本
+├── bridge/                      # 本机模型桥：DSH 宿主内插件，用「当前 LLM」且不需任何 Key
+│   ├── index.js                 # ctx.llm.stream() → OpenAI 兼容 /v1/chat/completions，同源发 app/
+│   ├── cordis.patch.yml         # 插件注册（127.0.0.1:8789 + 兜底端口）
+│   ├── test.mjs                 # 离线单测（mock ctx.llm，18 条）
+│   └── locale/ + icon.svg + README.md  # 显示元数据（官方清单硬要求）
 ├── tools/build-system-prompt.mjs # 幂等构建：travel-agent.md → prompt.js
 ├── examples/                    # 回归基准
 │   ├── README.md                # 怎么跑回归 / 判定标准 / 历史翻车点
@@ -45,7 +50,7 @@
 │   ├── facts.json               # 易过期事实台账（claim + verified_on + source_url）
 │   ├── cases.json               # 行为回放用例（不判分只留痕）
 │   ├── replay.py                # 行为回放操作卡：list / prompt / trace
-│   ├── regress.py               # 一次性静态自检脚本（PASS 229 / FAIL 0）
+│   ├── regress.py               # 一次性静态自检脚本（PASS 240 / FAIL 0）
 │   └── report.md                # 最近一次回归报告
 ├── hangzhou-5d-budget.md        # 杭州 5 天预算原始底稿
 ├── perfect-trip-card.png        # 桂林阳朔 3 天 2 夜「完美攻略」成品卡
@@ -100,7 +105,7 @@ cd C:/ai/agent/cardtest
 
 ## 能力边界（务必如实标注）
 
-- **静态全绿 ≠ 行为没退化**：`regress.py` 只做静态结构 + 算术重算 + 基准完整性 + 断言自检 + 事实台账 + 卡片静态健全 + 价格快照交叉 + 出境卡附加块 + 记账内核 + 行为回放用例 + 应用一致性(PWA/Worker)，不调 LLM、不渲染、不查实时数据。逐轮行为、图卡目检、实时数据现查仍需人工对照。
+- **静态全绿 ≠ 行为没退化**：`regress.py` 只做静态结构 + 算术重算 + 基准完整性 + 断言自检 + 事实台账 + 卡片静态健全 + 价格快照交叉 + 出境卡附加块 + 记账内核 + 行为回放用例 + 应用一致性(PWA/Worker) + 本机模型桥，不调 LLM、不渲染、不查实时数据。逐轮行为、图卡目检、实时数据现查仍需人工对照。
 - **房价只到城市 / 商圈粒度**：能拿「阳朔西街 12 家 ¥80–479 / 中位 ¥171」，不能定位具体某店的可下单价。SSR 是约 12 条/页的快照，**非可下单承诺价**，下单前必须重读。
 - **天气窗口外只能给气候常态**：工具实测只覆盖 7 天，更远的行程标「历史同期，非实时预报」并给复核提醒。
 - **图卡自检依赖模型视觉能力**：无视觉能力时走「尺寸 / 内容 / 溢出」三项结构化校验，并明说「未做像素级目检」。
@@ -179,6 +184,34 @@ cd C:/ai/agent/cardtest
 - **`worker/` Cloudflare Worker**：`POST /api/chat` 剥掉客户端伪造的 system、前置注入 `travel-agent.md` 全文、Origin 白名单、限长限轮数，`LLM_API_KEY` 只放 Authorization 头且统一 `{error}` 不回显密钥；前端/仓库/CI 日志 0 命中。
 - **`tools/build-system-prompt.mjs` + `[K]` 应用一致性门禁**：`prompt.js` 是提示词的生成副本，改了 `travel-agent.md` 忘了重跑 builder 就会让线上行为与基准脱节。`[K]` 逐字节比对两者、验应用骨架齐全 / manifest 合法 / SW 缓存清单 / 凭据正则活体样例 / 运行时 0 密钥。5 处故障注入（提示词漂移 / 塞假 key / 删 manifest 键 / 删 SW 缓存项 / wrangler 写密钥）各 exit 1 且准确命中、还原 exit 0。**共 +20 条断言**。
 > 部署需用户一次性操作：Cloudflare 建 Worker / `wrangler secret put LLM_API_KEY` / 仓库 Settings 把 Pages Source 设为 **GitHub Actions** / 手机 Settings 填 Worker URL。脚本与文档不能代做，已在 `app/README.md`、`worker/README.md` 写全步骤。
+
+**2026-11-08 补的第七层（PASS 229 → 240）：让 PWA 直接用「当前 LLM」，不需要任何 API Key**。
+上一层的 Worker 方案有个绕不过的短板：得自己准备 LLM Key、自己付额度、手机上还得填地址。
+用户要的是「连到我现在这个 Agent」。做法与三条关键结论：
+- **外部进程认证不了宿主的 loopback shim**：`dsh-connect-workbuddy` 的 bearer 是
+  `randomBytes(32)` 进程内随机、从不落盘（`bearerOk` 用 `timingSafeEqual` 比对），
+  唯一暴露点是 `token: () => SHARED_SECRET`，只给宿主内的 pi-ai 适配器用。
+  查到的 `~/.dsh/openai-gateway/api-key` 是 13 天前某个市场插件留下的过期凭据，不是它。
+- **唯一受支持的路子是宿主内插件**：`bridge/` 用 `ctx.llm.stream()` 跑当前适配器
+  （复用 provider/model/额度/重试/计量），对 `127.0.0.1:8789` 暴露 OpenAI 兼容接口。
+- **必须同源发页面**：https 的 GitHub Pages 页访问不了 http 的 `127.0.0.1`
+  （混合内容 + Private Network Access），所以桥自己伺服 `app/`，前端是
+  「本机桥 > Worker > Demo」三态。
+- `[L]` 桥一致性门禁（11 条）：提示词与 `[K]` **同源**（都从 `worker/src/prompt.js` 读，
+  不出现第二份真值源）、`cordis.patch.yml` 与 `index.js` 端口不得漂移、
+  六个安全件（Host 校验 / bearer / 随机 token / 丢弃客户端 system 等）必须全在、
+  locale 元数据非模板、桥源码 0 密钥、前端三态与优先级、SW 把新接口排除缓存。
+- **反向验证抓到 3 个真问题**（都是断言/验证器自身不合格，不是桥的 bug）：
+  ① FAIL 行是 `- ❌` 开头，用 `startswith("❌")` 解析永远得到 0 条 → 反向验证变成假绿；
+  ② 「桥优先」原用整文件正则，`sendToBackend` 里另一个 `if (bridge)` 就能充数
+     → 改成只在 `updateMode()` 函数体内找；
+  ③ SW 守卫原查「文件里出现过路径」，而注释里也写了一遍 → 改成查 `endsWith("...")` 实调用。
+  修后 5 处故障注入各 exit 1 且准确命中、字节级还原 exit 0。
+- 端到端实测：真浏览器点发送 → `USAGE prompt_tokens=10531`（系统提示词确实注入）→
+  回复是「行旅」标准 plan 结构（模式标签 / 一句话结论 / ≤3 问 / 三档承诺）。
+  目检还抓到一处自相矛盾：桥连通时横幅仍写「Demo 模式：没连 LLM」，与顶栏
+  「模式：本机 deepseek-v4.1-flash」打架 —— 已修，并把 `CACHE_VERSION` 升到 `xinglv-v3`
+  （否则 SW 的 stale-while-revalidate 会继续吐旧 `app.js`，第一次重截图的 sha256 完全没变就是证据）。
 
 **2026-11-05 加 CI 门禁**：上面这套自检再好用，也只在本地、只在人记得跑的时候生效。
 新增 `.github/workflows/regress.yml`，push / PR 自动跑 `regress.py` 当门禁并上传报告 artifact。

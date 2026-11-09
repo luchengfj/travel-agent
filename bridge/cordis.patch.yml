@@ -1,0 +1,20 @@
+# @local/xinglv-llm-bridge — 行旅本机大模型桥
+#
+# 顶层必须是 YAML 数组：单条无 id 的 insert 会追加到根 entry 列表。
+# entry 自带 id/name/config；bare 包名不会被 anchorInsertedPluginNames 转成 file:// URL。
+#
+# 端口 8789 是刻意选的：8788 已被 @local/dsh-anywhere-inject 占用，
+# 8791/8792/8793 是它的 fallbackPorts。
+- insert:
+    - id: xinglv-llm-bridge
+      name: '@local/xinglv-llm-bridge'
+      config:
+        host: 127.0.0.1
+        port: 8789
+        fallbackPorts: [8794, 8795, 8796]
+        # 留空 = 跟随 DSH 当前默认模型（agent-default-model 的 currentSelection()）。
+        provider: ''
+        model: ''
+        maxMessages: 20
+        maxTotalChars: 8000
+        maxMessageChars: 4000

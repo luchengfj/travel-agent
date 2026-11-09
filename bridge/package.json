@@ -1,0 +1,24 @@
+{
+  "name": "@local/xinglv-llm-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "行旅本机大模型桥：在 DSH Host 进程内用 ctx.llm.stream() 调用当前已配置的模型，对 127.0.0.1 暴露 OpenAI 兼容 /v1/chat/completions，让旅行 PWA 不必自带 API Key。",
+  "license": "MIT",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "README.md",
+    "locale/*.json",
+    "icon.svg"
+  ],
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" }
+  }
+}

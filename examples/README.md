@@ -12,7 +12,7 @@
 | `team-example.md` | 桂林同一需求 · 多角色协作冲突场景（200 行，埋 5 个坑） | 验证汇总者会不会照单全收：口径统一、加总自检、冲突裁决、干扰项不误判 |
 | `bangkok-example.md` | 曼谷 4 天 3 晚 · **境外变体**（第 0–9 轮，286 行，埋 5 个坑） | 验证境外四件事：签证 / 入境登记 / 汇率 / 时差，以及「政策优惠的适用人群」陷阱 |
 | `perfect-trip.md` | 桂林阳朔 3 天 2 夜 · **端到端成品攻略**（现查房价/高铁/门票 + 天气双轨 + 三处加总） | 用真实需求走一遍完整链路，看「查不到就如实标注」「不写已计入」是否落地 |
-| `regress.py` | **一键静态回归脚本**（结构 + 算术 + 基准 + 自检 + 台账 + 卡片 + 快照 + 出境卡 + 记账 + 回放 + 应用一致性，十一块） | 改完提示词先跑这一条，PASS 全绿再谈人工逐轮对照 |
+| `regress.py` | **一键静态回归脚本**（结构 + 算术 + 基准 + 自检 + 台账 + 卡片 + 快照 + 出境卡 + 记账 + 回放 + 应用一致性 + 本机模型桥，十二块） | 改完提示词先跑这一条，PASS 全绿再谈人工逐轮对照 |
 | `cases.json` + `replay.py` | 行为回放用例与操作卡（不判分只留痕） | 改完提示词跑一遍 `replay.py trace`，人眼 diff 逐轮输出 |
 | `report.md` | `regress.py --report` 生成的最新报告 | 留档 / 对比两次改动 |
 
@@ -20,7 +20,7 @@
 
 ## 一键静态回归（先跑这个）
 
-`regress.py` **不调大模型、不渲染图片、不联网**，只做十一块确定性的事，一条命令出对比报告：
+`regress.py` **不调大模型、不渲染图片、不联网**，只做十二块确定性的事，一条命令出对比报告：
 
 ```bash
 PY="C:/Users/cheng/.dsh/dsh-runtimes/dsh-next-primary-runtime/dependencies/python/python.exe"
@@ -44,6 +44,7 @@ cd C:/ai/agent && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py
 - 检查 [I] **记账内核**：从源码 `compile()` 加载 `cardtest/ledger.py`，断言 `PLAN` 与基准一致、`amount` 必填无默认值、`compute()` 与 `ledger-golden.json` 对账、空账本 0 笔 ¥0、入库 `guilin-spend.html` == `render_spend(空)`。
 - 检查 [J] **行为回放用例**：`cases.json` 的 schema / 用例数 / id 去重 / source 指向存在 / 字段齐全 / 「不判分」声明还在，且 `replay.py` 提供 list/prompt/trace。**只验结构，不给行为判分**。
 - 检查 [K] **应用一致性（PWA/Worker）**：`worker/src/prompt.js` 与 `travel-agent.md` 逐字节一致（防提示词漂移）、builder / wrangler 三变量无密钥 / manifest 合法含必需键 / sw.js 9 项离线外壳齐且 `/api/chat` 不缓存 / worker 转发骨架 / 凭据正则活体样例 + 运行时 0 密钥 / 图标与 Demo 样例成品齐。
+- 检查 [L] **本机模型桥（`bridge/`）**：桥让页面直接用 DSH 当前模型、不需要任何 API Key。断言的不是「桥没崩」，而是**桥没有悄悄说错话**：`cordis.patch.yml` 端口必须在 `index.js` 里也找得到（防两处静默漂移）、六个安全件必须全在（`ctx.llm.stream` / `isLoopbackHost` / `bearerOk` / `randomBytes` / 从 `prompt.js` 读提示词 / 丢弃客户端 `system`）、桥读提示词的路径必须仍是 `worker/src/prompt.js`（否则出现第二份真值源，[K] 就管不到它）、locale 元数据非模板、桥源码 0 密钥、前端三态与 `updateMode()` 函数体内的桥优先、sw.js 用 `endsWith()` **实调用**排除 `/api/chat`·`/v1/chat/completions`·`/bridge-info.json`。
 
 ### 一个踩过的坑（别改回去）
 

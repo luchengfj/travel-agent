@@ -213,13 +213,23 @@
 
   /* ---------- Demo 模式（静态已核实成品，非实时生成） ---------- */
   function demoIntroHtml(fromOffline) {
-    var lead = fromOffline
-      ? "当前离线，未调用 LLM。下面是仓库里已核实的静态样例（非实时生成）："
-      : "Demo 模式：没连 LLM，展示的是仓库里已核实、已上 CI 的静态成品（样例，非本次生成）。";
+    // 注意：这条横幅必须和顶栏的模式芯片说同一件事。
+    // 桥连通时还挂着「Demo 模式：没连 LLM」会自相矛盾（实测截图抓到过），
+    // 所以 lead 也要按连接状态分流，只有真的没连才自称 Demo。
+    var lead = bridge
+      ? "本机桥已连接（当前模型 " + esc(bridge.model || "DSH 默认") + "）。下面这份是仓库里已核实的静态样例，先看格式用——直接发消息就会实时生成，不会再给样例。"
+      : (fromOffline
+        ? "当前离线，未调用 LLM。下面是仓库里已核实的静态样例（非实时生成）："
+        : "Demo 模式：没连 LLM，展示的是仓库里已核实、已上 CI 的静态成品（样例，非本次生成）。");
+    var howTo = bridge
+      ? "本机桥已连接，直接发消息即可用当前模型。"
+      : (isLoopbackOrigin()
+        ? "本机桥没起来（DSH 未运行或插件未装），可在 ⚙ 设置里填 Worker 地址。"
+        : "要实时生成，请在 ⚙ 设置里填 Worker 地址；若在本机打开 http://127.0.0.1 的页面，则自动用当前模型。");
     return "<blockquote class=\"warn\">" + esc(lead) + "</blockquote>" +
       "<div class=\"shell\"><span class=\"mode-tag\">plan</span>一句话结论：桂林阳朔 3 天 2 夜，2 人，总预算 ¥3000，走均衡档 2 人 ¥2,758 / 人均 ¥1,379，余 ¥242。</div>" +
       "<p>要点：<strong>三档骨架</strong>（省钱 ¥2,006 / 均衡 ¥2,758 / 深度 ¥3,660）、<strong>逐日表</strong>、<strong>⚠️ 待核实清单</strong>，每个数字可加总、查不到就如实标注。</p>" +
-      "<p>点下面按钮看完整成品与图卡；想真正实时生成，请在 ⚙ 设置里填你的 Worker 地址。</p>";
+      "<p>点下面按钮看完整成品与图卡；" + esc(howTo) + "</p>";
   }
   function showDemoIntro(fromOffline) {
     addBubble("assistant", demoIntroHtml(fromOffline), { html: true, noCollapse: true });
@@ -238,7 +248,7 @@
     // 明确告知这是样例、不是针对本次输入的实时计划；绝不编造一份像样的计划。
     addBubble("assistant",
       "<blockquote class=\"warn\">Demo 模式没有连 LLM，因此<strong>不会</strong>针对「" + esc(userText.slice(0, 40)) + "」生成一份新计划——那样等于编数字。下面是已核实的静态样例（非本次生成）。</blockquote>" +
-      "<p>要看完整样例请点下方按钮；要实时生成，请在 ⚙ 设置里填 Worker 地址并「连接并保存」。</p>",
+      "<p>要看完整样例请点下方按钮；要实时生成，请在 ⚙ 设置里填 Worker 地址并「连接并保存」，或从本机桥的 http://127.0.0.1 地址打开本页（会自动用当前模型）。</p>",
       { html: true, noCollapse: true });
     addSampleButton();
   }
@@ -263,7 +273,79 @@
     });
   }
 
-  /* ---------- Live 模式：经 Worker 转发到真实 LLM ---------- */
+  /* ---------- Live 模式 ----------
+   * 两种后端，请求/响应形态不同，但前端只暴露一个 sendToBackend()：
+   *   桥（bridge）：页面本身由 DSH 插件从 127.0.0.1 发出 → 同源，
+   *                直接打 OpenAI 兼容 /v1/chat/completions，token 从
+   *                同源 /bridge-info.json 取（跨源 JS 读不到，故安全）。
+   *   Worker：GitHub Pages 上的页面 → 打 {workerUrl}/api/chat。
+   * 桥必须自己发页面，因为 https 页面根本连不上 http 的 127.0.0.1。
+   */
+  var bridge = null; // { token, provider, model } —— 探测到才非空
+  var BRIDGE_HOSTS = { "127.0.0.1": 1, "localhost": 1, "[::1]": 1 };
+
+  function isLoopbackOrigin() {
+    try { return !!BRIDGE_HOSTS[location.hostname]; } catch (e) { return false; }
+  }
+
+  function probeBridge() {
+    if (!isLoopbackOrigin()) return Promise.resolve(null);
+    return fetch("bridge-info.json", { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (info) {
+        if (info && info.ok && typeof info.token === "string") {
+          bridge = {
+            token: info.token,
+            provider: info.provider || "",
+            model: info.model || "",
+          };
+          return bridge;
+        }
+        return null;
+      })
+      .catch(function () { return null; });
+  }
+
+  /** 统一返回 Promise<{ text }> 或 reject(Error)。 */
+  function sendToBackend(messages) {
+    if (bridge) {
+      return fetch("v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + bridge.token,
+        },
+        body: JSON.stringify({ messages: messages }),
+      }).then(function (res) {
+        return res.json().catch(function () { return null; }).then(function (data) {
+          if (!res.ok) {
+            var e = (data && data.error) || {};
+            var code = e.code || e.type;
+            throw new Error(code ? (code + "：" + (e.message || "本机模型调用失败")) : ("HTTP " + res.status));
+          }
+          var choice = data && data.choices && data.choices[0];
+          var content = choice && choice.message && choice.message.content;
+          if (typeof content !== "string" || !content) throw new Error("本机模型没有返回文本");
+          return { text: content };
+        });
+      });
+    }
+
+    var url = (workerUrl || "").replace(/\/+$/, "") + "/api/chat";
+    return fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: messages }),
+    }).then(function (res) {
+      return res.json().catch(function () { return null; }).then(function (data) {
+        if (!res.ok || !data || typeof data.reply !== "string") {
+          throw new Error((data && data.error) ? data.error : ("HTTP " + res.status));
+        }
+        return { text: data.reply };
+      });
+    });
+  }
+
   function historyForApi(c, uptoIndex) {
     return c.messages.slice(0, uptoIndex).map(function (m) {
       return { role: m.role === "user" ? "user" : "assistant", content: m.content };
@@ -291,26 +373,13 @@
     typedMessage(text);
     sending = true; sendBtn.disabled = true;
     typingBubble();
-    var url = workerUrl.replace(/\/+$/, "") + "/api/chat";
     var timeout = new Promise(function (_, rej) {
-      setTimeout(function () { rej(new Error("请求超时（30 秒）")); }, 30000);
+      setTimeout(function () { rej(new Error("请求超时（60 秒）")); }, 60000);
     });
-    var call = fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: historyForApi(c, idx + 1) }),
-    }).then(function (res) {
-      return res.json().catch(function () { return null; }).then(function (data) {
-        return { ok: res.ok, status: res.status, data: data };
-      });
-    });
+    var call = sendToBackend(historyForApi(c, idx + 1));
     Promise.race([call, timeout]).then(function (r) {
-      if (!r.ok || !r.data || typeof r.data.reply !== "string") {
-        var msg = (r.data && r.data.error) ? r.data.error : ("HTTP " + r.status);
-        throw new Error(msg);
-      }
       removeTyping();
-      var reply = r.data.reply;
+      var reply = r.text;
       c.messages.push({ role: "assistant", content: reply, ts: Date.now() });
       touch(c);
       addBubble("assistant", reply);
@@ -319,7 +388,9 @@
       var offline = !navigator.onLine;
       addBubble("error",
         "<p><strong>没能拿到实时计划</strong>：" + esc(e.message || "未知错误") + "</p>" +
-        "<p>已保留你的输入和历史，<strong>没有编造</strong>一份计划。请检查：Worker 地址是否正确、Key 是否有效、网络是否通；也可切回 Demo 看静态样例。</p>" +
+        "<p>已保留你的输入和历史，<strong>没有编造</strong>一份计划。请检查：" +
+        (bridge ? "本机模型是否可用（DSH 是否在运行、当前模型是否配置好）" : "Worker 地址是否正确、Key 是否有效、网络是否通") +
+        "；也可切回 Demo 看静态样例。</p>" +
         (offline ? "<p>当前离线，可先看已缓存的静态样例。</p>" : ""),
         { html: true, error: true, noCollapse: true });
       if (offline) addSampleButton();
@@ -340,7 +411,7 @@
       showDemoIntro(true);
       return;
     }
-    if (!workerUrl) { typedMessage(text); demoAnswer(text); return; }
+    if (!bridge && !workerUrl) { typedMessage(text); demoAnswer(text); return; }
     sendLive(text);
   }
 
@@ -381,7 +452,9 @@
     workerUrl = v;
     setLS(LS.WORKER, v);
     updateMode();
-    settingsStatus.textContent = v ? "已保存。接下来发的消息会经你的 Worker 转发到真实 LLM。" : "已清空，切回 Demo 模式。";
+    settingsStatus.textContent = v
+      ? "已保存。接下来发的消息会经你的 Worker 转发到真实 LLM。"
+      : (bridge ? "已清空 Worker 地址，仍在本机桥模式（用当前模型）。" : "已清空，切回 Demo 模式。");
     closePanels();
     chat.innerHTML = "";
     if (!currentConv().messages.length) showDemoIntro(false); else renderConversation();
@@ -389,13 +462,25 @@
   $("btn-demo").addEventListener("click", function () {
     workerUrl = ""; setLS(LS.WORKER, "");
     $("worker-url").value = ""; updateMode();
-    settingsStatus.textContent = "已切回 Demo 模式（不联网）。";
+    // 桥连通时清掉 Worker 也不该自称「切回 Demo」——那样顶栏写着本机、状态栏写着 Demo。
+    settingsStatus.textContent = bridge
+      ? "已清空 Worker 地址，仍在本机桥模式（用当前模型）。"
+      : "已切回 Demo 模式（不联网）。";
   });
   modeBtn.addEventListener("click", function () { $("btn-settings").click(); });
   function updateMode() {
+    // 三种态：本机桥 > Worker > Demo。桥优先，因为它是「用当前 LLM」的那条路。
+    if (bridge) {
+      modeBtn.textContent = "模式：本机 " + (bridge.model || "当前模型");
+      modeBtn.classList.add("live");
+      modeBtn.classList.remove("bridge-local");
+      modeBtn.title = "经由 DSH 当前模型（" + (bridge.provider || "?") + "：" + (bridge.model || "?") + "）";
+      return;
+    }
     var live = !!workerUrl;
     modeBtn.textContent = live ? "模式：在线" : "模式：Demo";
     modeBtn.classList.toggle("live", live);
+    modeBtn.removeAttribute("title");
   }
 
   /* ---------- 历史 ---------- */
@@ -455,4 +540,13 @@
   updateMode();
   renderConversation();
   autoGrow();
+  // 页面若由本机桥发出，探测一次即可拿到 token 并切到「本机模型」模式；
+  // 探测失败（比如从 GitHub Pages 打开）就保持 Worker / Demo 逻辑不变。
+  probeBridge().then(function (info) {
+    updateMode();
+    if (info) {
+      settingsStatus.textContent = "已连上本机 DSH 当前模型：" + (info.model || "") + "（无需 Worker、无需 API Key）。";
+      renderConversation();
+    }
+  });
 })();

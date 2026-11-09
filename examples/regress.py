@@ -1074,8 +1074,161 @@ def check_app():
 
 
 # ==========================================================================
-# 复现输入（脚本不跑 LLM，只把「该喂什么」列清楚）
+# [L] 桥一致性：本机 DSH 模型桥（bridge/）与前端三态接入的漂移检测
 # ==========================================================================
+# 为什么需要这一块：v1 的 PWA 要么自带 Worker+Key，要么只能看静态 Demo。
+# 桥把「DSH 当前模型」直接接到页面上，于是多出一条**新的真值来源**，
+# 而桥最容易坏的方式不是崩，而是「悄悄说错话」：
+#   ① 提示词副本换了个读法 → 又与 travel-agent.md 漂移（[K] 只管 worker 那份）
+#   ② 端口在 patch 里改了、index.js 默认值没跟上 → 装上去监听在意外的端口
+#   ③ 安全件被删（Host 校验 / bearer / 丢弃客户端 system）→ 变成开放代理或提示词可篡改
+#   ④ sw.js 忘了把新接口排除缓存 → 重启后拿旧 token 一直 401
+#   ⑤ 前端三态判据退化 → 桥连着却仍报 Demo（实测截图抓到过这条）
+# 因此 [L] 只断言「这些结构必须一直在」，并配反向验证。
+BRIDGE = {
+    "dir": "bridge",
+    "package": "bridge/package.json",
+    "patch": "bridge/cordis.patch.yml",
+    "index": "bridge/index.js",
+    "readme": "bridge/README.md",
+    "icon": "bridge/icon.svg",
+    "locale": ["bridge/locale/en.json", "bridge/locale/zh.json"],
+    "prompt_target": "worker/src/prompt.js",
+}
+
+# 桥的安全/功能关键件。每一条都对应一个真实的失效方式，不是凑数。
+BRIDGE_NEEDLES = [
+    ("llm-stream", "ctx.llm.stream",
+     "用宿主进程内 ctx.llm.stream 跑当前模型（不是伪造 shim token）"),
+    ("host-guard", "isLoopbackHost",
+     "校验 Host 头，挡 DNS rebinding"),
+    ("bearer", "bearerOk",
+     "除引导端点外一律要 bearer"),
+    ("token-random", "randomBytes",
+     "token 每进程随机，不落盘"),
+    ("prompt-load", "prompt.js",
+     "系统提示词从 worker/src/prompt.js 读（与 [K] 同一真值源）"),
+    ("drop-system", "system",
+     "丢弃客户端伪造的 system，防提示词篡改"),
+]
+
+
+def check_bridge():
+    # ---- ① package.json：合法 JSON + 清单硬要求 ----
+    pj = read(ROOT / BRIDGE["package"])
+    pj_ok, pj_detail = False, "bridge/package.json 缺失"
+    if pj is not None:
+        try:
+            d = json.loads(pj)
+            pj_ok = True
+            bundle = (d.get("dsh") or {}).get("bundle") or {}
+            if not bundle.get("patch"):
+                pj_ok, pj_detail = False, "package.json 缺 dsh.bundle.patch"
+            exports = d.get("exports") or {}
+            # 官方硬要求：必须导出 ./locale/*.json 与 ./icon，否则安装后 title/图标读不到
+            if "./locale/*.json" not in exports:
+                pj_ok, pj_detail = False, "exports 缺 ./locale/*.json（官方硬要求）"
+            if "./icon" not in exports:
+                pj_ok, pj_detail = False, "exports 缺 ./icon（官方硬要求）"
+        except Exception as ex:
+            pj_detail = "不是合法 JSON：%s" % ex
+    check(pj_ok, "桥·package 清单", "bridge/package.json 合法且含 bundle/exports 硬要求", pj_detail)
+
+    # ---- ② cordis.patch.yml 与 index.js 的端口不能各说各话 ----
+    patch = read(ROOT / BRIDGE["patch"])
+    idx = read(ROOT / BRIDGE["index"])
+    m_port = re.search(r"^\s*port:\s*(\d+)", patch or "", re.M)
+    patch_port = m_port.group(1) if m_port else None
+    check(patch is not None and patch_port and "'@local/xinglv-llm-bridge'" in patch,
+          "桥·patch 注册",
+          "cordis.patch.yml 注册 @local/xinglv-llm-bridge 且带端口",
+          "bridge/cordis.patch.yml 缺失或没注册 entry/端口")
+    # index.js 里的默认端口必须就是 patch 里写的那个，否则「改一处忘另一处」会静默漂移
+    idx_port_ok = bool(idx and patch_port and re.search(r"\b" + patch_port + r"\b", idx))
+    check(idx_port_ok, "桥·端口一致",
+          "index.js 默认端口与 cordis.patch.yml 一致（%s）" % patch_port,
+          "patch 里是 %s，但 index.js 找不到该端口 —— 两处漂移" % patch_port)
+
+    # ---- ③ 安全/功能关键件必须全在 ----
+    miss = [label for label, needle, _ in BRIDGE_NEEDLES if idx is None or needle not in idx]
+    check(not miss, "桥·关键件齐全",
+          "ctx.llm.stream / Host 校验 / bearer / 随机 token / 提示词读取 / 系统提示词处理 全在",
+          "桥丢了关键件：%s" % miss)
+
+    # ---- ④ 桥读的提示词文件，必须就是 [K] 皇冠门禁管的那份 ----
+    same_src = bool(idx and "prompt.js" in idx and "worker" in idx)
+    check(same_src, "桥·提示词同源",
+          "桥从 worker/src/prompt.js 读系统提示词（与 [K] 同一真值源）",
+          "桥读提示词的路径不是 worker/src/prompt.js —— 会出现第二份真值源")
+
+    # ---- ⑤ 显示元数据：清单、图标、双语 locale 都得在，且不是模板文案 ----
+    meta_miss = [rel for rel in [BRIDGE["readme"], BRIDGE["icon"]] + BRIDGE["locale"]
+                 if not (ROOT / rel).exists()]
+    check(not meta_miss, "桥·显示元数据",
+          "README / 图标 / 中英 locale 齐备",
+          "缺显示元数据文件：%s" % meta_miss)
+    tmpl = []
+    for rel in BRIDGE["locale"]:
+        t = read(ROOT / rel)
+        if t is None:
+            continue
+        try:
+            d = json.loads(t)
+        except Exception:
+            tmpl.append(rel + "(非法 JSON)")
+            continue
+        meta = d.get("meta") or {}
+        title = (meta.get("title") or "").strip()
+        desc = (meta.get("description") or "").strip()
+        # 官方要求：必须真实描述能力，不许留模板文案
+        if not title or not desc or "TODO" in title + desc or "示例" in title + desc:
+            tmpl.append(rel)
+    check(not tmpl, "桥·locale 真实",
+          "中英 locale 的 meta.title/description 都是真实描述，非模板占位",
+          "locale 元数据像模板或缺失：%s" % tmpl)
+
+    # ---- ⑥ 桥源码凭据 0 命中（复用 [K] 的正则，同样先验活）----
+    bridge_scan = [BRIDGE["index"], BRIDGE["patch"], BRIDGE["package"]]
+    hits = []
+    for rel in bridge_scan:
+        txt = read(ROOT / rel)
+        if txt is None:
+            continue
+        for name, pat, _ in CREDENTIAL_PATTERNS:
+            if re.search(pat, txt, re.M):
+                hits.append(rel + " :: " + name)
+    check(not hits, "桥·凭据·零命中",
+          "bridge/ 运行时代码 0 个疑似真实密钥形态（token 是运行时随机生成的）",
+          "桥里疑似写死了密钥：" + "; ".join(hits))
+
+    # ---- ⑦ 前端三态：桥 > Worker > Demo 的判据必须在 ----
+    ajs = read(ROOT / "app/app.js")
+    fe_miss = [s for s in ["probeBridge", "bridge-info.json", "/v1/chat/completions",
+                           "sendToBackend", "isLoopbackOrigin"]
+               if ajs is None or s not in ajs]
+    check(not fe_miss, "桥·前端三态",
+          "app.js 具备桥探测 / OpenAI 兼容调用 / 统一后端分发 / loopback 判定",
+          "前端三态接入缺：%s" % fe_miss)
+    # 桥优先：必须是在 updateMode() 里先判 bridge。
+    # 不能拿整文件里的任意 "if (bridge)" 充数 —— sendToBackend 里也有一个，
+    # 那样 updateMode 完全不看桥也能混过去（反向验证抓到过）。
+    um = re.search(r"function updateMode\s*\([^)]*\)\s*\{(.*?)\n  \}", ajs or "", re.S)
+    bridge_first = bool(um and re.search(r"if\s*\(\s*bridge\s*\)", um.group(1)))
+    check(bridge_first, "桥·优先级",
+          "updateMode 里先判 bridge（桥 > Worker > Demo），模式芯片才会报「本机」",
+          "updateMode 没有先判 bridge —— 桥连着也可能落到 Demo/Worker 分支")
+
+    # ---- ⑧ sw.js 必须把桥的两个接口排除在缓存外 ----
+    # 注意：不能只查「文件里出现过这个路径」—— sw.js 的注释里也写了一遍路径，
+    # 删掉真正的守卫仍然能查得到（反向验证抓到过）。必须查 endsWith(...) 实调用。
+    sw = read(ROOT / "app/sw.js")
+    guard_miss = [p for p in ["/api/chat", "/v1/chat/completions", "/bridge-info.json"]
+                  if sw is None or not re.search(r"endsWith\(\s*['\"]" + re.escape(p) + r"['\"]", sw)]
+    check(not guard_miss, "桥·SW 不缓存接口",
+          "sw.js 用 endsWith() 实调用把 Worker 与桥的对话接口、以及带随机 token 的引导端点排除缓存",
+          "sw.js 缓存守卫缺实调用（注释里提到不算）：%s（重启后可能拿旧 token 一直 401）" % guard_miss)
+
+
 REPRO = [
     ("guilin-example.md", "第 1 轮首轮提问",
      "「我需要一个广西3天游，12。1-12.4日回来的旅游，深圳出发」",
@@ -1114,7 +1267,8 @@ def render():
     out.append(f"- 工作目录：`{ROOT}`")
     out.append(f"- 检查对象：`travel-agent.md` + `examples/` 四份基准 + `README.md` + 断言自检"
                f" + 事实台账 + 卡片静态健全 + 价格快照交叉 + 出境卡附加块"
-               f" + 记账内核 + 行为回放用例 + 应用一致性(PWA/Worker)")
+               f" + 记账内核 + 行为回放用例 + 应用一致性(PWA/Worker)"
+               f" + 本机模型桥(bridge/)漂移")
     out.append("")
     n_fail = sum(1 for l, _, _ in RESULTS if l == "FAIL")
     n_pass = sum(1 for l, _, _ in RESULTS if l == "PASS")
@@ -1187,6 +1341,7 @@ def main():
     check_ledger()
     check_replay()
     check_app()
+    check_bridge()
 
     report = render()
     print(report)

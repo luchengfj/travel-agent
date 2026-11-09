@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Xinglv local model bridge",
+    "description": "Serves the travel PWA and answers its chat calls with the model this Harness profile is already using, so the app needs no API key of its own."
+  }
+}

@@ -1,10 +1,10 @@
 # 旅行 Agent 回归报告
 
-- 生成时间：2026-11-07 21:23:49
+- 生成时间：2026-11-09 19:20:59
 - 工作目录：`C:\ai\agent`
-- 检查对象：`travel-agent.md` + `examples/` 四份基准 + `README.md` + 断言自检 + 事实台账 + 卡片静态健全 + 价格快照交叉 + 出境卡附加块 + 记账内核 + 行为回放用例 + 应用一致性(PWA/Worker)
+- 检查对象：`travel-agent.md` + `examples/` 四份基准 + `README.md` + 断言自检 + 事实台账 + 卡片静态健全 + 价格快照交叉 + 出境卡附加块 + 记账内核 + 行为回放用例 + 应用一致性(PWA/Worker) + 本机模型桥(bridge/)漂移
 
-**结论：✅ 全绿，未发现退化**（PASS 229 / FAIL 0 / INFO 2）
+**结论：✅ 全绿，未发现退化**（PASS 240 / FAIL 0 / INFO 2）
 
 | 状态 | 检查项 | 结果 |
 |---|---|---|
@@ -239,6 +239,17 @@
 | PASS | `应用·凭据·零命中` | 部署运行时代码/配置里 0 个疑似真实密钥形态 |
 | PASS | `应用·图标` | PWA 192/512 图标齐备 |
 | PASS | `应用·样例成品` | Demo 模式的已核实样例 md + PNG 齐备 |
+| PASS | `桥·package 清单` | bridge/package.json 合法且含 bundle/exports 硬要求 |
+| PASS | `桥·patch 注册` | cordis.patch.yml 注册 @local/xinglv-llm-bridge 且带端口 |
+| PASS | `桥·端口一致` | index.js 默认端口与 cordis.patch.yml 一致（8789） |
+| PASS | `桥·关键件齐全` | ctx.llm.stream / Host 校验 / bearer / 随机 token / 提示词读取 / 系统提示词处理 全在 |
+| PASS | `桥·提示词同源` | 桥从 worker/src/prompt.js 读系统提示词（与 [K] 同一真值源） |
+| PASS | `桥·显示元数据` | README / 图标 / 中英 locale 齐备 |
+| PASS | `桥·locale 真实` | 中英 locale 的 meta.title/description 都是真实描述，非模板占位 |
+| PASS | `桥·凭据·零命中` | bridge/ 运行时代码 0 个疑似真实密钥形态（token 是运行时随机生成的） |
+| PASS | `桥·前端三态` | app.js 具备桥探测 / OpenAI 兼容调用 / 统一后端分发 / loopback 判定 |
+| PASS | `桥·优先级` | updateMode 里先判 bridge（桥 > Worker > Demo），模式芯片才会报「本机」 |
+| PASS | `桥·SW 不缓存接口` | sw.js 用 endsWith() 实调用把 Worker 与桥的对话接口、以及带随机 token 的引导端点排除缓存 |
 
 ## 脚本没覆盖的部分（仍需人工/半自动）
 
