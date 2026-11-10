@@ -29,6 +29,10 @@
         # 只有打开这个开关才放行 `*.trycloudflare.com`。
         allowQuickTunnel: true
         # 若用固定域名的命名隧道，把域名写在这里（小写，不含协议与端口）。
+        # 保持空 [] = 不放行任何固定域名，只靠上面两条（quick tunnel / 后缀白名单）。
+        # 另：`node tools/tunnel.mjs --lt`（localtunnel 固定子域）实测**不稳定** ——
+        # 子域协商会连续 403，健康检查 502/503 居多，故不默认放行；
+        # 真要用就自己填进这里并重装插件，不稳定时记得清空。
         publicHosts: []
         # 域名**后缀**白名单，给「后缀固定、前缀随机」的隧道用 —— 典型是
         # localhost.run，域名形如 `xxxx.lhr.life`，每次连接都可能变，没法预先

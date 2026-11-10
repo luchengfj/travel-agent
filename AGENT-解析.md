@@ -334,34 +334,46 @@
   ② 「桥优先」原用整文件正则 `if \(\s*bridge\s*\)`，而 `sendToBackend` 里另有一个同形语句，于是 `updateMode()` 完全不看桥也能通过 → 改成先切出 `function updateMode(...){...}` 函数体再找；
   ③ SW 守卫原查「文件里出现过该路径」，但 sw.js 的注释里也写了一遍，删掉真正的守卫仍能查到 → 改成查 `endsWith("...")` 实调用。
   修后 5 处故障注入（SW 漏接口 / patch 端口漂移 / 删 Host 校验 / locale 模板化 / updateMode 不判桥）各 exit 1 且准确命中 `桥·` 前缀的 FAIL，字节级还原后 exit 0；另单独验证了「改 `travel-agent.md` 却没重跑 builder」会被 `应用·提示词同步·逐字节` 抓到。
-- **[L] 扩到 23 条（2026-11-09，后缀白名单 `publicHostSuffixes`，PASS 247 → 252）**：
+- **[L] 扩到 24 条（2026-11-09 加 5 条、2026-11-10 加固补 1 条；后缀白名单 `publicHostSuffixes`，PASS 247 → 253）**：
   第八层的 Host 白名单只能把域名一个个写进 `publicHosts`，而 `cloudflared` quick tunnel 的域名
   **每次重启都变**（`xxxx.lhr.life`），根本写不过来。桥于是加了 `publicHostSuffixes`：
-  放行「**恰好一层子域** + 指定后缀」的 Host。它比精确域名匹配更容易写错，所以 5 条断言各盯一种失效：
+  放行「**恰好一层子域** + 指定后缀」的 Host。它比精确域名匹配更容易写错，所以 6 条断言各盯一种失效：
   1. `桥·后缀白名单锚定` —— `matchesHostSuffix()` **函数体内**必须是
-     `const pattern = new RegExp(\`^[a-z0-9-]+\\\\.${escapeRegExp(suffix)}$\`)`：
+     ``const pattern = new RegExp(`^[a-z0-9-]+\\.${escapeRegExp(suffix)}$`)``：
      `^` + `[a-z0-9-]+` + `\.` + 转义后缀 + `$`。缺 `^`/`$` 就会变成子串包含
      （`xxxx.lhr.life.attacker.com` 也放行）；不过 `escapeRegExp` 则后缀里的 `.` 变通配
      （`xxx.lhrXlife` 放行）；**函数体内不许出现裸 `name.endsWith(suffix)`** ——
      `'evil-lhr.life'.endsWith('lhr.life')` 为真，等于「谁注册同后缀域名谁就能冒充」。
      ⚠️ 这条**只取函数体**：文件里 :483 的注释恰好写着「不用 `endsWith`」，
      整文件 grep 会把注释当代码（这正是「只查字符串在文件里出现过」那类假绿）。
-  2. `桥·后缀接进 Host 判定` —— `isPublicHost()` 必须在 `publicAccess` 总开关之后、
+     另外必须校验**极性**：`pattern.test(name)` 命中时得 `return true` ——
+     改成 `return false` 形状一模一样，却等于永不放行（第二轮注入抓出来的缺口）。
+  2. `桥·后缀转义函数` —— `escapeRegExp()` 的**函数体**必须转义全部正则元字符
+     （`. * + ? ^ $ { } ( ) | [ ] \`），并用 `lhr.life → lhr\.life`、`a+b → a\+b`
+     做行为对拍；判定器自带「只转义斜杠 / 只转义点」两个错值样例反查。
+     **调用点写着 `escapeRegExp(suffix)` 不算数** —— 函数体被改坏，后缀里的 `.` 仍是通配，
+     `abc.lhrxlife` 就能冒充 `abc.lhr.life`。这条是第二轮注入（E4）抓出来的。
+  3. `桥·后缀接进 Host 判定` —— `isPublicHost()` 必须在 `publicAccess` 总开关之后、
      `publicHosts` 精确匹配之外真的 `return matchesHostSuffix(name, guard.publicHostSuffixes)`。
      改成 `return false` 立刻 FAIL：**函数写得再对，没人调用也是白搭**（和第八层
-     `updateMode()` 那条同一类失效）。
-  3. `桥·后缀配置归一化` —— 读入后 trim / 小写 / 去首尾点，并被
+     `updateMode()` 那条同一类失效）。还要校验**顺序**：`publicAccess` 总开关的位置必须
+     早于 `matchesHostSuffix` —— 反过来则「关掉公网也放行」，而子串全在、照样全绿。
+  4. `桥·后缀配置归一化` —— 读入后 trim / 小写 / 去首尾点，并被
      `/^[a-z0-9-]+(\.[a-z0-9-]+)+$/` 挡掉单段与非法项，结果进 `guard`。
-     `["life"]` 这种单段后缀等于放开整个 `.life` TLD，必须被忽略。
-  4. `桥·后缀默认空` —— `cordis.patch.yml` 里 `publicHostSuffixes` 默认 `[]`：
-     安全默认，要放行隧道必须显式填、用完清空。
-  5. `桥·后缀判定器活体` —— **判定器自己的活体样例**：把正确实现和 **8 个**错值样例
+     `["life"]` 这种单段后缀等于放开整个 `.life` TLD，必须被忽略。进 `guard` 的那一行还必须是
+     **简写属性** `publicHostSuffixes,`：被写成 `publicHostSuffixes: publicHosts,` 时名字还在，
+     值却换成了精确名单（同样只有注入才抓得到）。
+  5. `桥·后缀默认空` —— `cordis.patch.yml` 里 `publicHostSuffixes` 默认 `[]`、且键**恰好
+     出现一次**：安全默认，要放行隧道必须显式填、用完清空。YAML 重复键是 last-wins，
+     `[]` 后面再跟一个 `['lhr.life']` 就让第一处留空变成障眼法（第三轮注入 F1 抓到的绕过）。
+  6. `桥·后缀判定器活体` —— **判定器自己的活体样例**：把正确实现和 **8 个**错值样例
      （裸 `endsWith` / `includes` 换皮 / 缺 `^` / 缺 `$` / 没过 `escapeRegExp` /
-     `(?:[a-z0-9-]+\.)+` 多层 label 放行 / 删掉单段 skip 行 / 命中却 `return false`）喂给同一个判定器，
-     必须「好的判过、坏的全判死」。没有这一条，判定函数写死了也照样全绿
+     `(?:[a-z0-9-]+\.)+` 多层 label 放行 / 删掉单段 skip 行 / 命中却 `return false`）
+     喂给同一个判定器，必须「好的判过、坏的全判死」。没有这一条，判定函数写死了也照样全绿
      （等价于 `[D]` 的 `SELFTEST`，但作用对象是**代码形态**而不是 `CLEAN_FILES` 的错值，
      所以没往 `SELFTEST` 加条目）。
-  - 反向验证 7 处，**每处各 exit 1 且只命中对应那一条**（不多也不少）：
+  - 反向验证共 **19 处**（7 明显 + 8 语义 + 4 刁钻），**每处各 exit 1 且只命中对应那一条**。
+    下面是第一轮那 7 处：
     裸 `endsWith`（A1）/ `${escapeRegExp(suffix)}`→`${suffix}`（A2）/ 去掉末尾 `$`（A3）/
     删单段 skip 行（A4）→ 均命中 `桥·后缀白名单锚定`；
     `isPublicHost` 改成 `return false`（B1）→ `桥·后缀接进 Host 判定`；
@@ -370,9 +382,10 @@
     每轮注入后立刻用备份覆盖还原，**三份冻结文件 SHA256 逐一核对一致**
     （`index.js` = `cb6875fc…df95170`、`cordis.patch.yml` = `29dac170…eadc033`、
     `test.mjs` = `bb886cd4…40118a2`，全程未改），再跑 exit 0 / PASS 252。
+     第二轮（语义）/ 第三轮（⑩ 段自身盲区）共再补 12 处，明细见下一条「加固轮」。
   - 分工说明：`bridge/index.js`、`bridge/cordis.patch.yml`、`bridge/test.mjs` 由另一位协作者
     改并已冻结；本轮的注入只用于**验证断言会 FAIL**，每次都已字节级还原。
-    `bridge/test.mjs` 从 34 条涨到 43 条（静态 `await test(` 计数），**该文件本轮未执行验证**。
+    `bridge/test.mjs` 从 34 条涨到 43 条（当时是静态 `await test(` 计数、未执行）；随后又加回 2 条锚定/转义用例，现 **45 条、`node bridge/test.mjs` 实测 PASS 45 / FAIL 0**（这两条分别注入「去掉 `$` 结尾锚定」与「后缀不经 `escapeRegExp`」时各红一条）。
 - **加固轮（2026-11-10，PASS 252 → 253，`[L]` 23 → 24）**：能接住「改得很明显」的注入，
   不等于能接住「形状没变、语义已坏」的改法。第二轮 8 处语义注入**只接住 3 处**，
   暴露 4 个缺口（均为断言自身问题）：① `pattern.test(name)` 命中却 `return false` → 全绿；
@@ -434,7 +447,7 @@ exit 1；字节级还原 → exit 0。这样连「防复发断言被改坏」这
 （复用 provider/model/额度/重试/计量）。③ https 的 Pages 页访问不了 http 的 `127.0.0.1`
 （混合内容 + Private Network Access），所以**桥必须自己同源发 `app/`**，前端变成
 「本机桥 > Worker > Demo」三态。据此新增 `bridge/`（`index.js` + `cordis.patch.yml` +
-`locale/` + `icon.svg` + `test.mjs` 43 条离线单测）与 `[L]` 门禁（24 条）。
+`locale/` + `icon.svg` + `test.mjs` 45 条离线单测）与 `[L]` 门禁（24 条）。
 桥的两个真 bug 是测试抓到的：上游错误报文被透传给客户端（改为固定文案 + 只透传机器可读
 `code`）、以及**桥原本不注入 system 提示词**（等于让用户和裸模型对话，且客户端还能伪造 system 篡改提示词）。
 端到端实测的最后一环是**用行为验证提示词生效，而不是看 token 数**：问「你的角色名是什么」答「行旅」，

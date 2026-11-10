@@ -97,7 +97,7 @@ node tools/tunnel.mjs
 
 ### 想要「重启后地址不变」怎么办
 
-`tools/tunnel.mjs` 用的是 quick tunnel，域名随机。要固定域名，只能走 Cloudflare 的
+`tools/tunnel.mjs` 默认用 quick tunnel，域名随机。要固定域名，只能走 Cloudflare 的
 **命名隧道 + Dashboard token**（本机 `cloudflared tunnel login` 那条路在部分网络下
 会卡在拉证书，实测不可用）：
 
@@ -108,6 +108,11 @@ node tools/tunnel.mjs
 5. 把那个固定域名写进 `bridge/cordis.patch.yml` 的 `publicHosts: ["xinglv.example.com"]`，
    重装插件（`plugin_manager` 的 `install_bundle`）——**否则会被 403 挡掉**，
    报错正是 `Host header must name the loopback interface or a configured public host`。
+
+> **关于 `node tools/tunnel.mjs --lt`（localtunnel 免费固定子域）**：曾经试过，
+> 但 2026-11-10 复测已不可靠 —— 同一子域连续 15 次探测 **0 次 200**（502/503/超时混着来），
+> 子域协商也常连续 403。所以默认 `publicHosts: []` 不放行它；真要用就自己填域名并重装插件，
+> 别把它当正式入口。
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|
@@ -149,10 +154,10 @@ node tools/tunnel.mjs
 ## 测试
 
 ```bash
-node bridge/test.mjs     # 43 个用例，全 mock ctx.llm，不联网
+node bridge/test.mjs     # 45 个用例，全 mock ctx.llm，不联网
 ```
 
-含 25 条公网模式 / 配对 / 后缀白名单用例：公网侧不下发 token/配对码、
+含 27 条公网模式 / 配对 / 后缀白名单用例：公网侧不下发 token/配对码、
 `evil-trycloudflare.com` 不放行、错码 401 不回显正确码、会话令牌 ≠ 主 token、
 配对后能真正对话、超预算 429、`publicAccess=false` 时 `/pair` 404 且公网 Host 一律 403；
 以及 `publicHostSuffixes` 9 条 —— `["lhr.life"]` 时 `xxx.lhr.life` 放行但公网侧仍不下发

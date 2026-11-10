@@ -601,6 +601,20 @@ await test('publicHostSuffixes：【lhr.life】时别的后缀 lhr.life.evil.com
   assert.equal(res.status, 403)
 })
 
+/* 模板正则漏了 $ 结尾锚定时，RegExp.test 是「子串匹配」：xxxx.lhr.life.attacker.com
+   里含着 lhr.life 后面的东西也能过 —— 这条专门钉住结尾锚定。 */
+await test('publicHostSuffixes：x.lhr.life.attacker.com 不放行（结尾必须锚定到串尾）', async () => {
+  const res = await request({ path: '/healthz', port: SUF_PORT, headers: { host: 'x.lhr.life.attacker.com' } })
+  assert.equal(res.status, 403, '正则缺 $ 结尾锚定时，RegExp.test 会当成子串匹配而放行')
+})
+
+/* 后缀没经过 escapeRegExp 时，`lhr.life` 里的 `.` 是「任意字符」：
+   abc.lhrxlife 会命中 /^[a-z0-9-]+\.lhr.life$/ 而被放行。这条钉住转义。 */
+await test('publicHostSuffixes：后缀里的点必须转义，abc.lhrxlife 不放行', async () => {
+  const res = await request({ path: '/healthz', port: SUF_PORT, headers: { host: 'abc.lhrxlife' } })
+  assert.equal(res.status, 403, '后缀没经 escapeRegExp 时，`.` 会匹配任意字符而放行')
+})
+
 await test('publicHostSuffixes：【lhr.life】时 trycloudflare 规则不受影响（两条路各管各的）', async () => {
   const ok = await request({ path: '/healthz', port: SUF_PORT, headers: { host: 'x.trycloudflare.com' } })
   assert.equal(ok.status, 200, ok.text)

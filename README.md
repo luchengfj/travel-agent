@@ -38,7 +38,7 @@
 ├── bridge/                      # 本机模型桥：DSH 宿主内插件，用「当前 LLM」且不需任何 Key
 │   ├── index.js                 # ctx.llm.stream() → OpenAI 兼容 /v1/chat/completions，同源发 app/
 │   ├── cordis.patch.yml         # 插件注册（127.0.0.1:8789 + 兜底端口）
-│   ├── test.mjs                 # 离线单测（mock ctx.llm，43 条）
+│   ├── test.mjs                 # 离线单测（mock ctx.llm，45 条）
 │   └── locale/ + icon.svg + README.md  # 显示元数据（官方清单硬要求）
 ├── tools/build-system-prompt.mjs # 幂等构建：travel-agent.md → prompt.js
 ├── tools/tunnel.mjs             # 一条命令：起公网隧道 + 实测 /healthz + 打印手机地址与配对码
@@ -254,7 +254,7 @@ cd C:/ai/agent/cardtest
   `/v1/models` 200 → `POST /v1/chat/completions` 问「只回答两个字：收到」得 **`收到`**
   （`model=deepseek-v4.1-flash`）→ 行为验证问角色名答 **`行旅`**（提示词确实注入）。
   无凭据仍 401。`bridge/test.mjs` 当时 **PASS 34 / FAIL 0**（新增公网用例 16 条；
-  后续第九层补到 43 条）。
+  后续第九层补到 43 条、再加 2 条锚定/转义用例到 45 条）。
 - **`[L]` 从 11 条扩到 18 条**（当时文档写的是「16 条」，实测 `check_bridge()` 是 18 条 ——
   见第九层的计数订正），新增的里逐条点名的 5 条全是公网安全看门狗。反向验证又抓到
   2 个**我自己写弱了的断言**：① 「配对限流」原只查 `PAIR_MAX_FAILURES` 常量存在，
@@ -269,7 +269,7 @@ cd C:/ai/agent/cardtest
 安全上它比 `publicHosts` 更容易写错，所以 `[L]` 补了 5 条看门狗，加固轮再补 1 条（`escapeRegExp` 函数体）：
 
 - **后缀白名单锚定**：`matchesHostSuffix()` 必须用 `^[a-z0-9-]+\.<转义后缀>$` 构造正则 ——
-  即 `new RegExp(\`^[a-z0-9-]+\\\\.${escapeRegExp(suffix)}$\`)`，**函数体内不许出现裸
+  即 ``new RegExp(`^[a-z0-9-]+\\.${escapeRegExp(suffix)}$`)``，**函数体内不许出现裸
   `endsWith(suffix)`**。理由：`'evil-lhr.life'.endsWith('lhr.life')` 为真，裸后缀比对等于
   「谁能注册 `xxx.lhr.life` 谁就能冒充」；不过 `escapeRegExp` 则后缀里的 `.` 变通配、
   `xxx.lhrXlife` 也会放行。**注意这条必须只 grep 函数体**：文件里 :483 的注释正好写着
@@ -311,9 +311,12 @@ cd C:/ai/agent/cardtest
 - **顺带订正一处文档账目**：文档此前写「`[L]` 16 条」，实测 `check_bridge()` 当时是 **18 条**
   （第八层实际加了 7 条而非 5 条，逐条点名的只有 5 条）。本轮按**实际计数**改为 18 → 23，
   不再沿用 16 这个错数；加固轮后按实际计数书写为 18 → 24。
-- 同一轮 `bridge/test.mjs` 也补了后缀白名单用例，从 34 条涨到 **43 条**（`await test(` 计数，
-  其中 9 条是 `publicHostSuffixes`）。**这一条本轮未执行验证** —— 按分工 `bridge/` 已冻结、
-  由另一位协作者跑过；本文档只记录静态计数。
+- 同一轮 `bridge/test.mjs` 也补了后缀白名单用例，从 34 条涨到 43 条（其中 9 条是
+  `publicHostSuffixes`）。当时只做静态 `await test(` 计数、**未执行**；后续又加回 2 条
+  锚定/转义用例（`x.lhr.life.attacker.com` 不放行、`abc.lhrxlife` 不放行），现 **45 条、
+  实测 PASS 45 / FAIL 0**。这两条的价值在于盖住 unit test 原有盲区：分别注入
+  「正则去掉 `$` 结尾锚定」和「后缀不经 `escapeRegExp`」时，**各只红对应的那一条**，
+  证明是两个独立退化而非重复覆盖（`[L]` 原本就能抓这两类，但 unit test 自己抓不到）。
 
 **2026-11-05 加 CI 门禁**：上面这套自检再好用，也只在本地、只在人记得跑的时候生效。
 新增 `.github/workflows/regress.yml`，push / PR 自动跑 `regress.py` 当门禁并上传报告 artifact。
