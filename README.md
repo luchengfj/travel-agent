@@ -51,7 +51,7 @@
 │   ├── facts.json               # 易过期事实台账（claim + verified_on + source_url）
 │   ├── cases.json               # 行为回放用例（不判分只留痕）
 │   ├── replay.py                # 行为回放操作卡：list / prompt / trace
-│   ├── regress.py               # 一次性静态自检脚本（PASS 252 / FAIL 0）
+│   ├── regress.py               # 一次性静态自检脚本（PASS 253 / FAIL 0）
 │   └── report.md                # 最近一次回归报告
 ├── hangzhou-5d-budget.md        # 杭州 5 天预算原始底稿
 ├── perfect-trip-card.png        # 桂林阳朔 3 天 2 夜「完美攻略」成品卡
@@ -210,7 +210,7 @@ cd C:/ai/agent/cardtest
 - **必须同源发页面**：https 的 GitHub Pages 页访问不了 http 的 `127.0.0.1`
   （混合内容 + Private Network Access），所以桥自己伺服 `app/`，前端是
   「本机桥 > Worker > Demo」三态。
-- `[L]` 桥一致性门禁（23 条）：提示词与 `[K]` **同源**（都从 `worker/src/prompt.js` 读，
+- `[L]` 桥一致性门禁（24 条）：提示词与 `[K]` **同源**（都从 `worker/src/prompt.js` 读，
   不出现第二份真值源）、`cordis.patch.yml` 与 `index.js` 端口不得漂移、
   六个安全件（Host 校验 / bearer / 随机 token / 丢弃客户端 system 等）必须全在、
   locale 元数据非模板、桥源码 0 密钥、前端三态与优先级、SW 把新接口排除缓存。
@@ -266,7 +266,7 @@ cd C:/ai/agent/cardtest
 第八层的 Host 白名单只能一个个域名写死 `publicHosts`，而 `cloudflared` 每次重启都换一个
 随机域名（`xxxx.lhr.life`），写不过来。于是桥加了配置 `publicHostSuffixes`：放行
 **恰好一层子域 + 指定后缀**的域名（写 `["lhr.life"]` 就放行 `xxxx.lhr.life`）。
-安全上它比 `publicHosts` 更容易写错，所以 `[L]` 补了 5 条看门狗：
+安全上它比 `publicHosts` 更容易写错，所以 `[L]` 补了 5 条看门狗，加固轮再补 1 条（`escapeRegExp` 函数体）：
 
 - **后缀白名单锚定**：`matchesHostSuffix()` 必须用 `^[a-z0-9-]+\.<转义后缀>$` 构造正则 ——
   即 `new RegExp(\`^[a-z0-9-]+\\\\.${escapeRegExp(suffix)}$\`)`，**函数体内不许出现裸
@@ -274,23 +274,43 @@ cd C:/ai/agent/cardtest
   「谁能注册 `xxx.lhr.life` 谁就能冒充」；不过 `escapeRegExp` 则后缀里的 `.` 变通配、
   `xxx.lhrXlife` 也会放行。**注意这条必须只 grep 函数体**：文件里 :483 的注释正好写着
   「不用 `endsWith`」，整文件 grep 会把注释当代码（这条是踩过的假绿）。
+- **后缀转义函数**：`escapeRegExp()` 的**函数体**必须转义全部正则元字符
+  （`. * + ? ^ $ { } ( ) | [ ] \`）。调用点写着 `escapeRegExp(suffix)` 不代表它在真的转义：
+  函数体被改成只转义斜杠，后缀里的 `.` 仍是通配，`abc.lhrxlife` 就能冒充 `abc.lhr.life`。
+  **这条是第二轮注入抓出来的**（详见下方「加固轮」）。
 - **后缀接进 Host 判定**：`isPublicHost()` 要在 `publicAccess` 总开关之后、`publicHosts`
   精确匹配之外，真的 `return matchesHostSuffix(name, guard.publicHostSuffixes)`；
   改成 `return false` 立刻 FAIL（光有漂亮函数、没人调用是典型的「实现存在但没接线」）。
 - **后缀配置归一化**：`publicHostSuffixes` 读入后 trim / 小写 / 去首尾点，并被
   `/^[a-z0-9-]+(\.[a-z0-9-]+)+$/` 挡掉单段与非法项，结果进 `guard`。`["life"]` 这种单段后缀
   等于放开整个 `.life` TLD，必须被忽略。
-- **默认留空**：`cordis.patch.yml` 里 `publicHostSuffixes` 默认 `[]` —— 安全默认，
+- **默认留空**：`cordis.patch.yml` 里 `publicHostSuffixes` 默认 `[]`、且键**恰好出现一次**
+  （YAML 重复键是 last-wins，第一处留空也能被后面的非空值绕过）—— 安全默认，
   要放行隧道必须显式填，用完清空。
-- **判定器活体**：把正确实现和 7 个错值样例（裸 `endsWith` / `includes` 换皮 / 缺 `^` /
-  缺 `$` / 没过 `escapeRegExp` / 多层 label 放行 / 不拦单段）喂给同一个判定器，必须
+- **判定器活体**：把正确实现和 8 个错值样例（裸 `endsWith` / `includes` 换皮 / 缺 `^` /
+  缺 `$` / 没过 `escapeRegExp` / 多层 label 放行 / 不拦单段 / 命中却 `return false`）喂给同一个判定器，必须
   「好的判过、坏的全判死」。**没有这一条，判定函数本身写死也会显示全绿**。
 - 反向验证：7 处注入（裸 `endsWith` / `${suffix}` 不转义 / 去掉 `$` / 删单段 skip /
   `isPublicHost` 不调用 / 过滤正则放宽 / yml 默认填 `[lhr.life]`）**各 exit 1 且只命中
   对应那一条**，还原后三份 bridge 文件 SHA256 逐一核对一致、再跑 exit 0（PASS 252）。
+- **2026-11-10 加固轮（PASS 252 → 253，`[L]` 23 → 24）**：上面那 7 处注入都是
+  「把代码改坏得很明显」，能接住不代表能接住**形状没变、语义已坏**的改法。于是又做了
+  第二轮 8 处语义注入，**只接住 3 处**，暴露 4 个真实缺口（全是断言自己的问题，不是桥的 bug）：
+  ① `if (pattern.test(name)) return true` 改成 `return false`（极性写反，等于永不放行）→ 仍全绿；
+  ② `escapeRegExp` 函数体被换成只转义斜杠 → 仍全绿（只查了调用点字符串）；
+  ③ `guard` 里 `publicHostSuffixes,` 被写成 `publicHostSuffixes: publicHosts,` → 仍全绿
+  （只查了名字在不在 guard 块里）；
+  ④ 后缀判定被提到 `!guard?.publicAccess` 之前（关掉公网也放行）→ 仍全绿（只查子串在不在，没查顺序）。
+  修法：新增 `桥·后缀转义函数` 1 条（判 `escapeRegExp` 函数体的字符类 + 行为对拍，另带
+  「只转义斜杠 / 只转义点」两个错值样例反查）；给锚定条补「命中必须 `return true`」、
+  给接线条补「`publicAccess` 必须在 `matchesHostSuffix` 之前」、给归一化条补「guard 里必须是
+  简写属性」。第三轮再补 4 处更刁的注入，又抓到 1 个绕过：**yml 里写第二个
+  `publicHostSuffixes` 键**（YAML last-wins，第一处留 `[]` 就能骗过检查）→ 改成「键必须恰好出现一次」。
+  最终 **19 处注入全部 exit 1 且只命中对应那条**（7 明显 + 8 语义 + 4 刁钻），
+  每轮三份 bridge 文件 SHA256 核对还原一致，终态 exit 0（PASS 253）。
 - **顺带订正一处文档账目**：文档此前写「`[L]` 16 条」，实测 `check_bridge()` 当时是 **18 条**
   （第八层实际加了 7 条而非 5 条，逐条点名的只有 5 条）。本轮按**实际计数**改为 18 → 23，
-  不再沿用 16 这个错数。
+  不再沿用 16 这个错数；加固轮后按实际计数书写为 18 → 24。
 - 同一轮 `bridge/test.mjs` 也补了后缀白名单用例，从 34 条涨到 **43 条**（`await test(` 计数，
   其中 9 条是 `publicHostSuffixes`）。**这一条本轮未执行验证** —— 按分工 `bridge/` 已冻结、
   由另一位协作者跑过；本文档只记录静态计数。

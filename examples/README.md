@@ -45,14 +45,15 @@ cd C:/ai/agent && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py
 - 检查 [I] **记账内核**：从源码 `compile()` 加载 `cardtest/ledger.py`，断言 `PLAN` 与基准一致、`amount` 必填无默认值、`compute()` 与 `ledger-golden.json` 对账、空账本 0 笔 ¥0、入库 `guilin-spend.html` == `render_spend(空)`。
 - 检查 [J] **行为回放用例**：`cases.json` 的 schema / 用例数 / id 去重 / source 指向存在 / 字段齐全 / 「不判分」声明还在，且 `replay.py` 提供 list/prompt/trace。**只验结构，不给行为判分**。
 - 检查 [K] **应用一致性（PWA/Worker）**：`worker/src/prompt.js` 与 `travel-agent.md` 逐字节一致（防提示词漂移）、builder / wrangler 三变量无密钥 / manifest 合法含必需键 / sw.js 9 项离线外壳齐且 `/api/chat` 不缓存 / worker 转发骨架 / 凭据正则活体样例 + 运行时 0 密钥 / 图标与 Demo 样例成品齐。
-- 检查 [L] **本机模型桥（`bridge/`）**：桥让页面直接用 DSH 当前模型、不需要任何 API Key。断言的不是「桥没崩」，而是**桥没有悄悄说错话**：`cordis.patch.yml` 端口必须在 `index.js` 里也找得到（防两处静默漂移）、六个安全件必须全在（`ctx.llm.stream` / `isLoopbackHost` / `bearerOk` / `randomBytes` / 从 `prompt.js` 读提示词 / 丢弃客户端 `system`）、桥读提示词的路径必须仍是 `worker/src/prompt.js`（否则出现第二份真值源，[K] 就管不到它）、locale 元数据非模板、桥源码 0 密钥、前端三态与 `updateMode()` 函数体内的桥优先、sw.js 用 `endsWith()` **实调用**排除 `/api/chat`·`/v1/chat/completions`·`/bridge-info.json`。公网侧另有 7 条看门狗（公网关键件 / 配对限流真比较 429 / 配对预算 1–100 / 公网不下发密钥 / 配对码只在服务端 / 前端待配对态 / 公网默认关闭），以及**后缀白名单** `publicHostSuffixes` 5 条（详见下一条）。
-- 检查 [L] 的 **`publicHostSuffixes` 后缀白名单**（2026-11-09 补，`[L]` 18 → 23）：放行 `<单层子域>.<后缀>`（如 `["lhr.life"]` → `xxxx.lhr.life`），它比精确 `publicHosts` 更容易写错，所以 5 条断言各盯一种失效：
+- 检查 [L] **本机模型桥（`bridge/`）**：桥让页面直接用 DSH 当前模型、不需要任何 API Key。断言的不是「桥没崩」，而是**桥没有悄悄说错话**：`cordis.patch.yml` 端口必须在 `index.js` 里也找得到（防两处静默漂移）、六个安全件必须全在（`ctx.llm.stream` / `isLoopbackHost` / `bearerOk` / `randomBytes` / 从 `prompt.js` 读提示词 / 丢弃客户端 `system`）、桥读提示词的路径必须仍是 `worker/src/prompt.js`（否则出现第二份真值源，[K] 就管不到它）、locale 元数据非模板、桥源码 0 密钥、前端三态与 `updateMode()` 函数体内的桥优先、sw.js 用 `endsWith()` **实调用**排除 `/api/chat`·`/v1/chat/completions`·`/bridge-info.json`。公网侧另有 7 条看门狗（公网关键件 / 配对限流真比较 429 / 配对预算 1–100 / 公网不下发密钥 / 配对码只在服务端 / 前端待配对态 / 公网默认关闭），以及**后缀白名单** `publicHostSuffixes` 6 条（详见下一条）。
+- 检查 [L] 的 **`publicHostSuffixes` 后缀白名单**（2026-11-09 补、2026-11-10 加固，`[L]` 18 → 24）：放行 `<单层子域>.<后缀>`（如 `["lhr.life"]` → `xxxx.lhr.life`），它比精确 `publicHosts` 更容易写错，所以 6 条断言各盯一种失效：
   - `桥·后缀白名单锚定`：`matchesHostSuffix()` **函数体内**必须 `new RegExp(\`^[a-z0-9-]+\\\\.${escapeRegExp(suffix)}$\`)` —— `^`+`\.`+`$` 三重锚定、后缀过 `escapeRegExp`，且函数体内不许有裸 `endsWith(suffix)`（`evil-lhr.life`.endsWith(`lhr.life`) 为真，等于谁能注册同后缀域名谁就能冒充）。**只 grep 函数体**：文件注释里正好写着「没用 `endsWith`」，整文件 grep 会假绿。
-  - `桥·后缀接进 Host 判定`：`isPublicHost()` 在 `publicAccess` 总开关之后、`publicHosts` 精确匹配之外真的 `return matchesHostSuffix(name, guard.publicHostSuffixes)`——光有漂亮函数没人调用也是白搭。
+  - `桥·后缀转义函数`：`escapeRegExp()` 的**函数体**必须转义全部正则元字符（`. * + ? ^ $ { } ( ) | [ ] \`），并用 `lhr.life` → `lhr\.life` 行为对拍；判定器自带「只转义斜杠 / 只转义点」两个错值样例反查。**调用点写着 `escapeRegExp(suffix)` 不算数** —— 函数体被改坏，后缀里的 `.` 仍是通配，`abc.lhrxlife` 就能冒充 `abc.lhr.life`。这条是 2026-11-10 第二轮注入抓出来的缺口。
+  - `桥·后缀接进 Host 判定`：`isPublicHost()` 在 `publicAccess` 总开关**之后**（位置要早于 `matchesHostSuffix`）、`publicHosts` 精确匹配之外真的 `return matchesHostSuffix(name, guard.publicHostSuffixes)`——光有漂亮函数没人调用也是白搭；顺序反了则「关掉公网也放行」。
   - `桥·后缀配置归一化`：读入后 trim/小写/去首尾点，并被 `/^[a-z0-9-]+(\.[a-z0-9-]+)+$/` 挡掉单段与非法项；`["life"]` 等于放开整个 `.life` TLD，必须被忽略。
-  - `桥·后缀默认空`：`cordis.patch.yml` 里默认 `[]`，要放行必须显式填、用完清空。
-  - `桥·后缀判定器活体`：把正确实现与 7 个错值样例（裸 `endsWith` / `includes` 换皮 / 缺 `^` / 缺 `$` / 没过 `escapeRegExp` / 多层 label / 不拦单段）喂同一判定器，必须「好的判过、坏的全判死」——否则判定函数写死了也照样显示全绿。
-  （这 5 条判的是**代码形态**而非文件里的错值，所以不进 `SELFTEST`；`SELFTEST` 只覆盖 `CLEAN_FILES` 的 `absent` 正则，等价的反向保障由上一条「活体」+ 手工注入验收提供。）
+  - `桥·后缀默认空`：`cordis.patch.yml` 里默认 `[]`、且键**恰好出现一次**（YAML 重复键是 last-wins，第一处留空也能被后面的非空值绕过），要放行必须显式填、用完清空。
+  - `桥·后缀判定器活体`：把正确实现与 8 个错值样例（裸 `endsWith` / `includes` 换皮 / 缺 `^` / 缺 `$` / 没过 `escapeRegExp` / 多层 label / 不拦单段 / **命中却 `return false`**）喂同一判定器，必须「好的判过、坏的全判死」——否则判定函数写死了也照样显示全绿。
+  （这 6 条判的是**代码形态**而非文件里的错值，所以不进 `SELFTEST`；`SELFTEST` 只覆盖 `CLEAN_FILES` 的 `absent` 正则，等价的反向保障由上一条「活体」+ 手工注入验收提供。）
 
 ### 一个踩过的坑（别改回去）
 
@@ -171,6 +172,7 @@ PY="C:/Users/cheng/.dsh/dsh-runtimes/dsh-next-primary-runtime/dependencies/pytho
 | 2026-11-06 | **补第四层缺口（PASS 161 → 182）**：[H] 出境卡 5 固定附加块 —— 新建 `cardtest/bangkok.html`（曼谷境外卡样板），逐块验附加块真的在卡上 + 大数字 DOM 级交叉；`shot.py` 渲染高度可覆盖 | 境外卡 HTML + 回归脚本 | 0（4 处故障注入各 exit 1 且准确命中 → 还原 exit 0） | 已交付 |
 | 2026-11-07 | **补第五层缺口（PASS 182 → 209）**：[I] 记账内核 `ledger.py` 兑现 spend 承诺（顺带修 `guilin-spend.html` ¥3,700→¥3,400 真 bug）；[J] 行为回放 `cases.json`+`replay.py` 不判分只留痕 | 记账内核 + 回放用例 + 回归脚本 | 0（6 处故障注入各 exit 1 且准确命中 → 还原 exit 0） | 已交付 |
 | 2026-11-07 | **补第六层缺口（PASS 209 → 229）**：手机 PWA `app/` + Cloudflare Worker `worker/` + 幂等 builder `tools/`；[K] 应用一致性门禁（`prompt.js` 与提示词逐字节同步、骨架完整、凭据正则活体 + 运行时 0 密钥） | PWA + Worker + 回归脚本 + 四文档 | 0（5 处故障注入各 exit 1 且准确命中 → 还原 exit 0） | 本轮 |
+| 2026-11-10 | **[L] ⑩ 段加固（PASS 252 → 253，`[L]` 23 → 24）**：第二轮 8 处「静态形状看着还对、语义已坏」的注入只接住 3 处，暴露 4 个真实缺口（`pattern.test(name)` 极性写反 / `escapeRegExp` 函数体被改坏 / `guard` 里的后缀被指向 `publicHosts` / 后缀判定被提到 `publicAccess` 之前），第三轮 4 处再抓到 yml 重复键 last-wins 绕过。修法：新增 `桥·后缀转义函数`，并给锚定/接线/归一化/默认空各补静态腿（命中必须 `return true`、`publicAccess` 必须更靠前、`guard` 里必须是简写属性、yml 键必须恰好一处） | `examples/regress.py` + 四份文档 | 0（19 处注入全 exit 1 且**只命中**对应那条 → 三份 bridge 文件 SHA256 逐一核对还原一致 → exit 0 PASS 253） | 已交付 |
 | 2026-11-09 | **`[L]` 补后缀白名单门禁（PASS 247 → 252，`[L]` 18 → 23）**：桥新增配置 `publicHostSuffixes`（放行 `<单层子域>.<后缀>`，给域名每次都变的 `cloudflared` quick tunnel 用）。新增 5 条断言：锚定形态（`^[a-z0-9-]+\\.<转义后缀>$`、函数体内不许裸 `endsWith`）/ 真的接进 `isPublicHost` / 读入归一化并挡掉单段后缀 / `cordis.patch.yml` 默认空 / 判定器活体（7 个错值样例必须全判死）。顺带订正文档账目：此前写「16 条」，实测是 18 条 | `bridge/index.js` + `bridge/cordis.patch.yml`（**临时注入后字节级还原**）+ 回归脚本 + 五份文档 | 0（7 处故障注入各 exit 1 且**只命中**对应那条 → 三份 bridge 文件 SHA256 逐一核对还原一致 → exit 0 PASS 252） | 已交付 |
 
 > 新增一行时照抄表头格式；「未通过的检查点」写编号或原句，方便 grep。

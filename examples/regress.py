@@ -1154,6 +1154,9 @@ SUFFIX_IMPL_MUTANTS = [
     ("不拦单段后缀（[\"life\"] 等于放开整个 TLD）",
      SUFFIX_IMPL_GOOD.replace(
          "    if (typeof suffix !== 'string' || !suffix.includes('.')) continue\n", "")),
+    ("匹配成功却 return false（极性写反，等于永不放行）",
+     SUFFIX_IMPL_GOOD.replace("if (pattern.test(name)) return true",
+                              "if (pattern.test(name)) return false")),
 ]
 
 # 行为对拍：每一条对应一个真实的冒名姿势，全部打到判定器上。
@@ -1167,6 +1170,62 @@ SUFFIX_CASES = [
     ("单段后缀：xxxx.life 配 [\"life\"]", "xxxx.life", ["life"], False),
     ("空白名单：默认什么都不放行", "xxxx.lhr.life", [], False),
 ]
+
+
+# escapeRegExp 也是安全边界的一部分：调用点写着 escapeRegExp(suffix)，不代表函数体真的
+# 在转义 —— 要是被改成只转义斜杠，后缀里的 `.` 仍然是通配，`abc.lhrxlife` 就能冒充
+# `abc.lhr.life`。所以这里单独判函数体，并用「只转义斜杠 / 只转义点」两个错值样例反查。
+ESCAPE_META = ".*+?^${}()|[]\\"
+
+ESCAPE_IMPL_MUTANTS = [
+    ("只转义斜杠（后缀里的 `.` 仍是通配）",
+     "function escapeRegExp(text) {\n"
+     "  return String(text).replace(/[/]/g, '\\\\$&')\n"
+     "}"),
+    ("只转义点（`+` / `(` 仍能改正则结构）",
+     "function escapeRegExp(text) {\n"
+     "  return String(text).replace(/[.]/g, '\\\\$&')\n"
+     "}"),
+]
+
+
+def escape_reg_exp_ok(body):
+    """判「escapeRegExp 真的把正则元字符转义了吗」。返回 (ok, [问题])。
+
+    只看调用点是不够的：调用点可以一直写着 `escapeRegExp(suffix)`，函数体却被换成
+    只转义斜杠 —— 那样后缀里的 `.` 仍是通配，`abc.lhrxlife` 就能冒充 `abc.lhr.life`。
+    所以这里既查字符类覆盖面，也用真输入打一遍。
+    """
+    if not body:
+        return False, ["取不到 escapeRegExp 函数体（函数被删或改名）"]
+    problems = []
+    m = re.search(r"\.replace\(\s*/((?:\\.|[^/\\\n])+)/[a-z]*\s*,", body)
+    if not m:
+        return False, ["escapeRegExp 里没有 .replace(/.../, ...) 形态的字符类替换"]
+    cls = m.group(1)
+    if not (cls.startswith("[") and cls.endswith("]")):
+        return False, ["escapeRegExp 的替换对象不是字符类：%r" % cls]
+    inner = cls[1:-1]
+    chars, i = set(), 0
+    while i < len(inner):
+        if inner[i] == "\\" and i + 1 < len(inner):
+            chars.add(inner[i + 1])
+            i += 2
+        else:
+            chars.add(inner[i])
+            i += 1
+    missing = [c for c in ESCAPE_META if c not in chars]
+    if missing:
+        problems.append("字符类没覆盖这些正则元字符：%s" % "".join(missing))
+
+    def esc(text):
+        return "".join(("\\" + c) if c in chars else c for c in text)
+
+    for probe, want in (("lhr.life", "lhr\\.life"), ("a+b", "a\\+b"), ("x1", "x1")):
+        got = esc(probe)
+        if got != want:
+            problems.append("行为对拍不符：escapeRegExp(%r) → %r，期望 %r" % (probe, got, want))
+    return (not problems), problems
 
 
 def js_func_body(src, name):
@@ -1274,13 +1333,18 @@ def suffix_sim(body):
     head = head.replace("\\\\", "\\")
     tail = tail.replace("\\\\", "\\")
 
+    # 光有正则不够：`if (pattern.test(name)) return true` 被改成 return false，
+    # 形状一模一样却是反的。把极性读出来，反了就让仿真返回「永不匹配」。
+    pol = re.search(r"\.\s*test\(\s*name\s*\)\s*\)\s*(?:\{\s*)?return\s+(true|false)", body)
+    invert = bool(pol) and pol.group(1) == "false"
+
     def sim_regex(host, suffixes):
         for s in suffixes:
             if not isinstance(s, str) or skip(s):
                 continue
             try:
                 if re.search(head + (re.escape(s) if escaped else s) + tail, host):
-                    return True
+                    return (not invert)
             except re.error:
                 return None
         return False
@@ -1319,6 +1383,10 @@ def judge_suffix_impl(body):
             problems.append("label 字符集不是 [a-z0-9-]+")
     if not re.search(r"!\s*suffix\s*\.\s*includes\(\s*['\"]\.['\"]\s*\)", body):
         problems.append("没跳过单段后缀（!suffix.includes('.')）：[\"life\"] 等于放开整个 TLD")
+    if not re.search(r"\.\s*test\(\s*name\s*\)", body):
+        problems.append("没拿 pattern 去 test(name)（匹配结果根本没被用上）")
+    elif not re.search(r"\.\s*test\(\s*name\s*\)\s*\)\s*(?:\{\s*)?return\s+true", body):
+        problems.append("pattern.test(name) 命中时没有 return true（判定极性被写反）")
     sim, why = suffix_sim(body)
     problems.extend(why)
     if sim is not None:
@@ -1560,6 +1628,17 @@ def check_bridge():
           "xxxx.lhr.life 放行，evil-lhr.life / a.b.lhr.life / xxxx.lhr.life.attacker.com 全部拒绝",
           "后缀白名单的锚定被写弱了：%s" % ("; ".join(anchored_why) or "未说明"))
 
+    # 调用点写着 escapeRegExp(suffix) 不代表它在真的转义：函数体本身要单独判
+    esc_body = js_func_body(idx, "escapeRegExp")
+    esc_ok, esc_why = escape_reg_exp_ok(esc_body)
+    esc_leaked = [n for n, s in ESCAPE_IMPL_MUTANTS if escape_reg_exp_ok(s)[0]]
+    if esc_leaked:
+        esc_why = list(esc_why) + ["转义判定器判不出这些错值样例：%s" % esc_leaked]
+    check(esc_ok and not esc_leaked, "桥·后缀转义函数",
+          "escapeRegExp 转义了全部正则元字符（. * + ? ^ $ { } ( ) | [ ] \\）："
+          "lhr.life → lhr\\.life，判定器把「只转义斜杠 / 只转义点」两个错值样例判死",
+          "后缀转义函数不合格：%s" % esc_why)
+
     # 光有函数没用：它必须真的接在 Host 判定链上，否则配置项是一句死开关
     pub_host_body = js_func_body(idx, "isPublicHost")
     hook_why = []
@@ -1573,6 +1652,11 @@ def check_bridge():
             hook_why.append("原有 publicHosts 精确白名单被删（后缀不该取代它）")
         if not re.search(r"guard\s*\?\s*\.\s*publicAccess", pub_host_body):
             hook_why.append("丢了 publicAccess 总开关前置判断（关掉公网还得只认 loopback）")
+        pos_gate = pub_host_body.find("publicAccess")
+        pos_suffix = pub_host_body.find("matchesHostSuffix")
+        if pos_gate < 0 or pos_suffix < 0 or pos_gate > pos_suffix:
+            hook_why.append("publicAccess 总开关没排在 matchesHostSuffix 之前"
+                            "（publicAccess=false 时后缀白名单仍会放行）")
     check(not hook_why, "桥·后缀接进 Host 判定",
           "isPublicHost 在 publicAccess 总开关之后、publicHosts 精确匹配之外真的调用"
           " matchesHostSuffix(name, guard.publicHostSuffixes)",
@@ -1618,22 +1702,31 @@ def check_bridge():
             guard_block = idx[m_guard.end():k] if k > 0 else ""
         if "publicHostSuffixes" not in guard_block:
             norm_why.append("归一化结果没进 guard（matchesHostSuffix 拿到的会是 undefined）")
+        elif not re.search(r"^[ \t]*publicHostSuffixes[ \t]*,[ \t]*$", guard_block, re.M):
+            norm_why.append("guard 里 publicHostSuffixes 不是简写属性"
+                            "（被指向了别的值，归一化结果没用上）")
     check(not norm_why, "桥·后缀配置归一化",
           "publicHostSuffixes 读入后 trim/小写/去首尾点，并被 /^[a-z0-9-]+(\\.[a-z0-9-]+)+$/ "
           "挡掉单段与非法后缀，结果进了 guard",
           "后缀配置归一化不完整：%s" % norm_why)
 
-    # 默认值必须安全：patch 里留空数组，用哪个隧道由人事先显式填
-    yml_suffix = None
-    if patch:
-        m_yml = re.search(r"^[ \t]*publicHostSuffixes[ \t]*:[ \t]*(.*)$", patch, re.M)
-        if m_yml:
-            yml_suffix = m_yml.group(1).strip()
-    default_ok = yml_suffix == "[]"
-    check(default_ok, "桥·后缀默认空",
-          "cordis.patch.yml 里 publicHostSuffixes 默认留空 []（要放行必须显式填，用完清空）",
-          "publicHostSuffixes 默认值不是空数组（实际：%r）—— 隧道名会被默认放行"
-          % (yml_suffix,))
+    # 默认值必须安全：patch 里留空数组，用哪个隧道由人事先显式填。
+    # 还要防「重复键」：YAML 重复 key 一般是 last-wins，第一处留 [] 就能骗过检查，
+    # 实际生效的却是后面那个非空值 —— 所以键必须**恰好出现一次**。
+    yml_hits = re.findall(r"^[ \t]*publicHostSuffixes[ \t]*:[ \t]*(.*)$", patch or "", re.M)
+    yml_suffix = yml_hits[0].strip() if yml_hits else None
+    yml_why = []
+    if not yml_hits:
+        yml_why.append("patch 里没有 publicHostSuffixes 键（配置项没登记，改起来没锚点）")
+    elif len(yml_hits) > 1:
+        yml_why.append("publicHostSuffixes 出现了 %d 次（YAML last-wins，前者留空也能被绕过）：%r"
+                       % (len(yml_hits), [h.strip() for h in yml_hits]))
+    elif yml_suffix != "[]":
+        yml_why.append("默认值不是空数组（实际：%r）—— 隧道名会被默认放行" % (yml_suffix,))
+    check(not yml_why, "桥·后缀默认空",
+          "cordis.patch.yml 里 publicHostSuffixes 恰好一处、默认留空 []"
+          "（要放行必须显式填，用完清空）",
+          "publicHostSuffixes 默认值不安全：%s" % yml_why)
 
     # 判定器自证：好的实现必须判过，7 个错值样例必须全部被判死
     good_ok, good_why = judge_suffix_impl(SUFFIX_IMPL_GOOD)
@@ -1649,7 +1742,7 @@ def check_bridge():
         live_why.append("判定器判不出这些错值样例：%s" % escaped)
     check(not live_why, "桥·后缀判定器活体",
           "判定器自证活着：正确实现判过，%d 个错值样例（裸 endsWith / includes / 缺 ^ / 缺 $ / "
-          "没转义 / 多层 label / 不拦单段）全部判死" % len(SUFFIX_IMPL_MUTANTS),
+          "没转义 / 多层 label / 不拦单段 / 极性写反）全部判死" % len(SUFFIX_IMPL_MUTANTS),
           "后缀判定器自己不合格：%s" % live_why)
 
 

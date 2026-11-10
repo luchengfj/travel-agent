@@ -19,7 +19,7 @@
 | `cardtest/ledger-golden.json` | 记账内核的 golden 夹具（3 笔演示账 + expected） | `[I]` 用它对 compute() 结果 |
 | `examples/cases.json` + `replay.py` | 行为回放「不判分只留痕」用例与操作卡 | `[J]` 只验结构，行为对照归人眼 |
 | `app/` + `worker/` + `tools/` | 手机 PWA 前端 / Cloudflare Worker 代理 / 提示词→`prompt.js` 幂等构建 | 改 `travel-agent.md` 后必须重跑 `node tools/build-system-prompt.mjs`，否则 `[K]` 门禁立刻 FAIL |
-| `bridge/` | 本机模型桥（DSH 宿主内插件）：`ctx.llm.stream()` 跑当前模型，对 127.0.0.1 暴露 OpenAI 兼容接口并同源发 `app/` | 改端口 → 同步 `cordis.patch.yml` 与 `index.js`；改提示词读取 → 必须仍指向 `worker/src/prompt.js`，否则 `[L]` FAIL；改公网放行（`publicHosts` / `publicHostSuffixes` / `allowQuickTunnel`）→ `[L]` 会校验后缀是**锚定**写法（`^[a-z0-9-]+\.<转义后缀>$`，不是裸 `endsWith`）、单段后缀被拒、默认留空 |
+| `bridge/` | 本机模型桥（DSH 宿主内插件）：`ctx.llm.stream()` 跑当前模型，对 127.0.0.1 暴露 OpenAI 兼容接口并同源发 `app/` | 改端口 → 同步 `cordis.patch.yml` 与 `index.js`；改提示词读取 → 必须仍指向 `worker/src/prompt.js`，否则 `[L]` FAIL；改公网放行（`publicHosts` / `publicHostSuffixes` / `allowQuickTunnel`）→ `[L]` 会校验后缀是**锚定**写法（`^[a-z0-9-]+\.<转义后缀>$`，不是裸 `endsWith`）、命中时必须 `return true`、`publicAccess` 总开关排在它前面、`escapeRegExp` **函数体**真的在转义、单段后缀被拒、yml 里默认留空且键只能出现一次 |
 | `bridge/test.mjs` | 桥的离线单测（mock `ctx.llm`，43 条：含公网 Host 白名单 / 后缀白名单 / 配对 / 会话令牌 / 限流） | 用 `node bridge/test.mjs` 直接跑（`node --test` 会 spawn EPERM） |
 
 **铁律**：金额改一处，必须同步「分项 / 合计 / 图上大数字」三处；加总差 1 元也要找出来。
@@ -33,7 +33,7 @@ cd C:/ai/agent && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py            # 
 cd C:/ai/agent && PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --report   # 落盘 report.md
 ```
 
-退出码 `0` = 全绿，`1` = 有 FAIL。当前基线 **PASS 252 / FAIL 0**（`[L]` 23 条）。
+退出码 `0` = 全绿，`1` = 有 FAIL。当前基线 **PASS 253 / FAIL 0**（`[L]` 24 条）。
 CI（`.github/workflows/regress.yml`）在每次 push / PR 上自动跑同一条命令，纯标准库、不联网。
 
 ## 3. 硬边界（别越线，也别假装做到了）
