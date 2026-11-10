@@ -74,7 +74,19 @@ config:
 
 ### 手机接入步骤
 
+**最省事：一条命令。** 在仓库根目录跑
+
+```bash
+node tools/tunnel.mjs
+```
+
+它会检查桥、起隧道、**实测公网 `/healthz` 真返回 200**（不是「拿到域名」就报成功），
+然后直接把手机地址和 6 位配对码打出来。手机打开 → ⚙ → 输配对码 → 保存完事。
+
+**手动等价命令**（`tools/tunnel.mjs` 就是把它包装了一层）：
+
 1. 电脑上打开 `http://127.0.0.1:8789` → ⚙ 设置 → 看到 **6 位配对码**。
+   （或在 PowerShell 里 `(Invoke-RestMethod http://127.0.0.1:8789/bridge-info.json).pairCode`）
 2. 起隧道：`cloudflared tunnel --url http://127.0.0.1:8789 --protocol http2`
    （本机默认 QUIC 出站被挡，必须指定 `--protocol http2`）。
 3. 手机打开隧道给的 `https://xxx.trycloudflare.com` → ⚙ 设置 → 输入配对码 → 保存。
@@ -82,6 +94,20 @@ config:
 
 > quick tunnel 的域名**每次重启都变**，配对码也是。换域名后浏览器里存的是旧域名的
 > 令牌，需要在新域名下重新配对一次。
+
+### 想要「重启后地址不变」怎么办
+
+`tools/tunnel.mjs` 用的是 quick tunnel，域名随机。要固定域名，只能走 Cloudflare 的
+**命名隧道 + Dashboard token**（本机 `cloudflared tunnel login` 那条路在部分网络下
+会卡在拉证书，实测不可用）：
+
+1. 打开 <https://one.dash.cloudflare.com> → Networks → Tunnels → Create a tunnel → 选 **Cloudflared**；
+2. 给它起个名，复制页面上那串 **token**；
+3. 在 **Public Hostname** 加一条：子域填你想要的名字，域名选你的域，**Service 填 `http://127.0.0.1:8789`**；
+4. 本机跑：`cloudflared tunnel run --token <TOKEN>`（token 是凭据，别提交进仓库）；
+5. 把那个固定域名写进 `bridge/cordis.patch.yml` 的 `publicHosts: ["xinglv.example.com"]`，
+   重装插件（`plugin_manager` 的 `install_bundle`）——**否则会被 403 挡掉**，
+   报错正是 `Host header must name the loopback interface or a configured public host`。
 
 | 方法 | 路径 | 鉴权 | 说明 |
 |---|---|---|---|

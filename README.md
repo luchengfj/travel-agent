@@ -41,6 +41,7 @@
 │   ├── test.mjs                 # 离线单测（mock ctx.llm，43 条）
 │   └── locale/ + icon.svg + README.md  # 显示元数据（官方清单硬要求）
 ├── tools/build-system-prompt.mjs # 幂等构建：travel-agent.md → prompt.js
+├── tools/tunnel.mjs             # 一条命令：起公网隧道 + 实测 /healthz + 打印手机地址与配对码
 ├── examples/                    # 回归基准
 │   ├── README.md                # 怎么跑回归 / 判定标准 / 历史翻车点
 │   ├── guilin-example.md        # plan 全流程（4 天 3 晚）
@@ -87,13 +88,25 @@ PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --report
 谁误删了一条防复发正则，CI 立刻红。注意边界不变：**静态全绿 ≠ 行为没退化**（见下节），
 逐轮行为对照、图卡像素级目检、实时数据现查仍需人工；脚本刻意不联网，避免外部数据源抖动把 CI 变红。
 
-### 3. 渲一张卡
+### 3. 让手机用上「当前 LLM」
+```bash
+cd C:/ai/agent
+"C:/Users/cheng/.dsh/dsh-runtimes/dsh-next-primary-runtime/dependencies/node/bin/node.exe" tools/tunnel.mjs
+```
+它做四件事：检查桥活着 → 起 cloudflared quick tunnel（**必须** `--protocol http2`）→
+实测公网 `/healthz` 真的返回 200（拿到域名 ≠ 能用）→ 打印手机地址 + 6 位配对码。
+手机打开那个地址 → 右下 ⚙ → 输入配对码，之后这台手机就能用你电脑上 DSH 的当前模型。
+
+两条如实说明：域名是临时的（隧道重启就换）、配对码每个 DSH 进程随机（重启就变）。
+要固定域名得走 Cloudflare Dashboard 出 token，见 `bridge/README.md`「公网模式」。
+
+### 4. 渲一张卡
 ```bash
 cd C:/ai/agent/cardtest
 "$PY" shot.py guilin3d2n.html "C:/ai/agent/cardtest/guilin3d2n.png" 1080
 ```
 
-### 4. 查实时房价（免登录、免账号、不撞 2FA）
+### 5. 查实时房价（免登录、免账号、不撞 2FA）
 ```bash
 cd C:/ai/agent/cardtest
 "$PY" hotel_price.py --city 871 --zone 4532 \
