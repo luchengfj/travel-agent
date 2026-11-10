@@ -276,8 +276,8 @@
 | `hangzhou-example.md` | 215 | deal / prep / ontrip / review 四模式 · 18 个检查点 |
 | `team-example.md` | 201 | 多角色冲突裁决 · 9 个检查点 |
 | `bangkok-example.md` | 286 | 境外变体（签证/汇率/时差/现金门槛）· 19 个检查点 |
-| `regress.py` | 1457 | 一次性自检脚本（十二块检查，详见第 5 节） |
-| `report.md` | 277 | 最近一次回归报告（PASS 247 / FAIL 0 / INFO 2） |
+| `regress.py` | 1783 | 一次性自检脚本（十二块检查，详见第 5 节） |
+| `report.md` | 282 | 最近一次回归报告（PASS 252 / FAIL 0 / INFO 2） |
 
 检查点合计 **63 条**（17+18+9+19）。
 
@@ -298,7 +298,7 @@
 | 多角色 | 贴「三个角色的原始交付」整段 | 埋 5 个坑：住宿单位、合计 3420 与分项 3400 差 20、规划员越权估竹筏 ¥75、D3 排不下刘三姐；**餐饮 650 是合理估算属干扰项，不该判错** |
 | 曼谷 | 「12 月中去曼谷玩几天，从深圳走，两个人，预算你看着办」→「12/17-12/20 行，护照没问题，人均 3000 含机票」 | 境外四件事、TDAC 72 小时窗、20 泰铢「谁有资格」、门槛值≠消费值、汇率取整口径 |
 
-### 5.3 `regress.py` 十二块检查（1457 行）
+### 5.3 `regress.py` 十二块检查（1783 行）
 - **[A] 提示词结构**：20 个必需一级章节按内容匹配（不按行号，行号会漂移）、7 张图卡规格小节、**21 条硬规则关键词**（每条对应真实翻车点）、出境卡 5 个附加块。
 - **[B] 数字重算**（用 Python 把基准自己也算一遍，防「假基准」）：
   - 桂林 `g=[275.5*2*2, 336*3, 650, 200*2, 240]` → `sum=3400`、人均 `1700`、人均分项 `[551,504,325,200,120]`；三档 `[1336,1700,2336]`。
@@ -312,8 +312,9 @@
 - **[I] 记账内核（2026-11-07 新增）**：`check_ledger()` 从源码 `compile()` 加载 `cardtest/ledger.py`，断言 `PLAN == canonical(1102/1008/650/400/240=3400)`、`add_entry` 的 `amount` 必填无默认值（金额来自用户）、`compute()` 与 `ledger-golden.json` 的 3 笔演示账对账、空账本 0 笔 ¥0、以及「入库 `guilin-spend.html` == `render_spend(空账本)`」。兑现 spend 承诺的同时，把旧卡 ¥3,700 的真 bug 一起修掉。
 - **[J] 行为回放（2026-11-07 新增）**：`check_replay()` 验 `cases.json` 的 schema / 5 用例 / id 去重 / source 指向存在 / 字段齐全 / 「不判分」声明还在，以及 `replay.py` 提供 list/prompt/trace。**只验结构，不给行为判分**——行为层非确定性，自动判分只会造假绿灯。
 - **[K] 应用一致性（2026-11-07 新增）**：`check_app()` 的**皇冠门禁**是 `worker/src/prompt.js` 内嵌字符串与 `travel-agent.md` 逐字节一致（改提示词忘了重跑 `tools/build-system-prompt.mjs` 必 FAIL）；另验 builder 存在、wrangler 三变量在场且无密钥字面量、manifest 合法 JSON 含必需键、sw.js 9 项 APP_SHELL 齐且文件真实存在且 `/api/chat` 不缓存、worker 转发骨架关键字、2 图标与 Demo 样例成品。**凭据扫描正则自带活体样例**（否则「0 命中」可能只是正则被改松后的假绿），只扫部署运行时代码/配置、排除文档与测试文件。
-- **[L] 本机模型桥（2026-11-08 新增）**：`check_bridge()` 管 `bridge/`。桥最容易坏的方式不是崩，而是**悄悄说错话**，所以 16 条断言逐条对应一种失效：`package.json` 的 `dsh.bundle.patch` 与 `exports` 里的 `./locale/*.json`、`./icon`（官方清单硬要求，漏了装上也读不到标题/图标）；`cordis.patch.yml` 的端口必须在 `index.js` 里也找得到（改一处忘另一处的静默漂移）；六个关键件必须全在（`ctx.llm.stream` / `isLoopbackHost` / `bearerOk` / `randomBytes` / 从 `prompt.js` 读提示词 / 处理并丢弃客户端 `system`）；桥读提示词的路径必须仍是 `worker/src/prompt.js`（否则出现**第二份真值源**，[K] 的逐字节门禁就管不到它了）；locale 的 `meta.title/description` 不能是模板占位；桥源码 0 密钥形态；前端三态（`probeBridge` / `bridge-info.json` / `sendToBackend` / `isLoopbackOrigin`）与 `updateMode()` **函数体内的**桥优先；sw.js 用 `endsWith()` **实调用**排除 `/api/chat`、`/v1/chat/completions`、`/bridge-info.json`。
-- **[L] 扩到 16 条（2026-11-09，公网模式）**：新增 5 条全是**公网安全看门狗**，
+- **[L] 本机模型桥（2026-11-08 新增）**：`check_bridge()` 管 `bridge/`。桥最容易坏的方式不是崩，而是**悄悄说错话**，所以 23 条断言逐条对应一种失效：`package.json` 的 `dsh.bundle.patch` 与 `exports` 里的 `./locale/*.json`、`./icon`（官方清单硬要求，漏了装上也读不到标题/图标）；`cordis.patch.yml` 的端口必须在 `index.js` 里也找得到（改一处忘另一处的静默漂移）；六个关键件必须全在（`ctx.llm.stream` / `isLoopbackHost` / `bearerOk` / `randomBytes` / 从 `prompt.js` 读提示词 / 处理并丢弃客户端 `system`）；桥读提示词的路径必须仍是 `worker/src/prompt.js`（否则出现**第二份真值源**，[K] 的逐字节门禁就管不到它了）；locale 的 `meta.title/description` 不能是模板占位；桥源码 0 密钥形态；前端三态（`probeBridge` / `bridge-info.json` / `sendToBackend` / `isLoopbackOrigin`）与 `updateMode()` **函数体内的**桥优先；sw.js 用 `endsWith()` **实调用**排除 `/api/chat`、`/v1/chat/completions`、`/bridge-info.json`。
+  > 计数订正：2026-11-09 之前文档多处写「`[L]` 16 条」，实测 `check_bridge()` 当时是 **18 条**（第八层实际加了 7 条，逐条点名的只有 5 条）。本文件已按实际计数书写：18 → 23。
+- **[L] 扩到 18 条（2026-11-09，公网模式）**：新增 7 条，下面点名的 5 条全是**公网安全看门狗**，
   因为 `publicAccess: true` 是本项目最危险的开关——它一旦打开而配对机制没跟上，
   等于把「用你的额度跑模型」变成公网匿名接口。5 条分别是：公网模式关键件齐全
   （`isPublicHost` / `'/pair'` / `randomInt` / `sessions` / `isAuthorized` / `PAIR_MAX_FAILURES`）、
@@ -333,6 +334,45 @@
   ② 「桥优先」原用整文件正则 `if \(\s*bridge\s*\)`，而 `sendToBackend` 里另有一个同形语句，于是 `updateMode()` 完全不看桥也能通过 → 改成先切出 `function updateMode(...){...}` 函数体再找；
   ③ SW 守卫原查「文件里出现过该路径」，但 sw.js 的注释里也写了一遍，删掉真正的守卫仍能查到 → 改成查 `endsWith("...")` 实调用。
   修后 5 处故障注入（SW 漏接口 / patch 端口漂移 / 删 Host 校验 / locale 模板化 / updateMode 不判桥）各 exit 1 且准确命中 `桥·` 前缀的 FAIL，字节级还原后 exit 0；另单独验证了「改 `travel-agent.md` 却没重跑 builder」会被 `应用·提示词同步·逐字节` 抓到。
+- **[L] 扩到 23 条（2026-11-09，后缀白名单 `publicHostSuffixes`，PASS 247 → 252）**：
+  第八层的 Host 白名单只能把域名一个个写进 `publicHosts`，而 `cloudflared` quick tunnel 的域名
+  **每次重启都变**（`xxxx.lhr.life`），根本写不过来。桥于是加了 `publicHostSuffixes`：
+  放行「**恰好一层子域** + 指定后缀」的 Host。它比精确域名匹配更容易写错，所以 5 条断言各盯一种失效：
+  1. `桥·后缀白名单锚定` —— `matchesHostSuffix()` **函数体内**必须是
+     `const pattern = new RegExp(\`^[a-z0-9-]+\\\\.${escapeRegExp(suffix)}$\`)`：
+     `^` + `[a-z0-9-]+` + `\.` + 转义后缀 + `$`。缺 `^`/`$` 就会变成子串包含
+     （`xxxx.lhr.life.attacker.com` 也放行）；不过 `escapeRegExp` 则后缀里的 `.` 变通配
+     （`xxx.lhrXlife` 放行）；**函数体内不许出现裸 `name.endsWith(suffix)`** ——
+     `'evil-lhr.life'.endsWith('lhr.life')` 为真，等于「谁注册同后缀域名谁就能冒充」。
+     ⚠️ 这条**只取函数体**：文件里 :483 的注释恰好写着「不用 `endsWith`」，
+     整文件 grep 会把注释当代码（这正是「只查字符串在文件里出现过」那类假绿）。
+  2. `桥·后缀接进 Host 判定` —— `isPublicHost()` 必须在 `publicAccess` 总开关之后、
+     `publicHosts` 精确匹配之外真的 `return matchesHostSuffix(name, guard.publicHostSuffixes)`。
+     改成 `return false` 立刻 FAIL：**函数写得再对，没人调用也是白搭**（和第八层
+     `updateMode()` 那条同一类失效）。
+  3. `桥·后缀配置归一化` —— 读入后 trim / 小写 / 去首尾点，并被
+     `/^[a-z0-9-]+(\.[a-z0-9-]+)+$/` 挡掉单段与非法项，结果进 `guard`。
+     `["life"]` 这种单段后缀等于放开整个 `.life` TLD，必须被忽略。
+  4. `桥·后缀默认空` —— `cordis.patch.yml` 里 `publicHostSuffixes` 默认 `[]`：
+     安全默认，要放行隧道必须显式填、用完清空。
+  5. `桥·后缀判定器活体` —— **判定器自己的活体样例**：把正确实现和 7 个错值样例
+     （裸 `endsWith` / `includes` 换皮 / 缺 `^` / 缺 `$` / 没过 `escapeRegExp` /
+     `(?:[a-z0-9-]+\.)+` 多层 label 放行 / 删掉单段 skip 行）喂给同一个判定器，
+     必须「好的判过、坏的全判死」。没有这一条，判定函数写死了也照样全绿
+     （等价于 `[D]` 的 `SELFTEST`，但作用对象是**代码形态**而不是 `CLEAN_FILES` 的错值，
+     所以没往 `SELFTEST` 加条目）。
+  - 反向验证 7 处，**每处各 exit 1 且只命中对应那一条**（不多也不少）：
+    裸 `endsWith`（A1）/ `${escapeRegExp(suffix)}`→`${suffix}`（A2）/ 去掉末尾 `$`（A3）/
+    删单段 skip 行（A4）→ 均命中 `桥·后缀白名单锚定`；
+    `isPublicHost` 改成 `return false`（B1）→ `桥·后缀接进 Host 判定`；
+    过滤正则从 `+` 放宽成 `*`（C1）→ `桥·后缀配置归一化`；
+    `cordis.patch.yml` 默认填 `[lhr.life]`（D1）→ `桥·后缀默认空`。
+    每轮注入后立刻用备份覆盖还原，**三份冻结文件 SHA256 逐一核对一致**
+    （`index.js` = `cb6875fc…df95170`、`cordis.patch.yml` = `29dac170…eadc033`、
+    `test.mjs` = `bb886cd4…40118a2`，全程未改），再跑 exit 0 / PASS 252。
+  - 分工说明：`bridge/index.js`、`bridge/cordis.patch.yml`、`bridge/test.mjs` 由另一位协作者
+    改并已冻结；本轮的注入只用于**验证断言会 FAIL**，每次都已字节级还原。
+    `bridge/test.mjs` 从 34 条涨到 43 条（静态 `await test(` 计数），**该文件本轮未执行验证**。
 
 ### 5.4 一条 load-bearing 的设计铁律（首跑 7 个假 FAIL 换来的）
 > **基准样例文件的职责就是「记录这些 bug」**：历史翻车点、回归检查点、场景设定、角色原始交付里本来就写着 `¥168/人`、`¥77.37`、竹筏 `¥75`、提前 72 小时以上填 TDAC、20 泰铢当游客福利……对基准全文做「错值必须缺席」在原理上不成立（首跑 7 个 FAIL 里 5 个就这么来的）。
@@ -379,7 +419,7 @@ exit 1；字节级还原 → exit 0。这样连「防复发断言被改坏」这
 （复用 provider/model/额度/重试/计量）。③ https 的 Pages 页访问不了 http 的 `127.0.0.1`
 （混合内容 + Private Network Access），所以**桥必须自己同源发 `app/`**，前端变成
 「本机桥 > Worker > Demo」三态。据此新增 `bridge/`（`index.js` + `cordis.patch.yml` +
-`locale/` + `icon.svg` + `test.mjs` 34 条离线单测）与 `[L]` 门禁（16 条）。
+`locale/` + `icon.svg` + `test.mjs` 43 条离线单测）与 `[L]` 门禁（23 条）。
 桥的两个真 bug 是测试抓到的：上游错误报文被透传给客户端（改为固定文案 + 只透传机器可读
 `code`）、以及**桥原本不注入 system 提示词**（等于让用户和裸模型对话，且客户端还能伪造 system 篡改提示词）。
 端到端实测的最后一环是**用行为验证提示词生效，而不是看 token 数**：问「你的角色名是什么」答「行旅」，
@@ -399,7 +439,7 @@ PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --report    # 落盘 report.md
 PYTHONIOENCODING=utf-8 "$PY" examples/regress.py --emit-prompt  # 打印复现指令
 ```
 退出码 **0 = 全绿 / 1 = 有 FAIL**。`PYTHONIOENCODING=utf-8` 必须带（Windows 控制台默认 GBK，报告里的 ✅/❌ 会触发 `UnicodeEncodeError: 'gbk' codec can't encode character '\u274c'`）；脚本 `main()` 里也做了 `sys.stdout.reconfigure(encoding="utf-8")` 兜底。
-最近一次结果：**PASS 247 / FAIL 0 / INFO 2**。
+最近一次结果：**PASS 252 / FAIL 0 / INFO 2**。
 
 ### 5.6 判定标准（4 类，措辞不算退化，硬事实和口径算）
 | 类 | 要求 |

@@ -38,7 +38,7 @@
 ├── bridge/                      # 本机模型桥：DSH 宿主内插件，用「当前 LLM」且不需任何 Key
 │   ├── index.js                 # ctx.llm.stream() → OpenAI 兼容 /v1/chat/completions，同源发 app/
 │   ├── cordis.patch.yml         # 插件注册（127.0.0.1:8789 + 兜底端口）
-│   ├── test.mjs                 # 离线单测（mock ctx.llm，18 条）
+│   ├── test.mjs                 # 离线单测（mock ctx.llm，43 条）
 │   └── locale/ + icon.svg + README.md  # 显示元数据（官方清单硬要求）
 ├── tools/build-system-prompt.mjs # 幂等构建：travel-agent.md → prompt.js
 ├── examples/                    # 回归基准
@@ -50,7 +50,7 @@
 │   ├── facts.json               # 易过期事实台账（claim + verified_on + source_url）
 │   ├── cases.json               # 行为回放用例（不判分只留痕）
 │   ├── replay.py                # 行为回放操作卡：list / prompt / trace
-│   ├── regress.py               # 一次性静态自检脚本（PASS 247 / FAIL 0）
+│   ├── regress.py               # 一次性静态自检脚本（PASS 252 / FAIL 0）
 │   └── report.md                # 最近一次回归报告
 ├── hangzhou-5d-budget.md        # 杭州 5 天预算原始底稿
 ├── perfect-trip-card.png        # 桂林阳朔 3 天 2 夜「完美攻略」成品卡
@@ -197,7 +197,7 @@ cd C:/ai/agent/cardtest
 - **必须同源发页面**：https 的 GitHub Pages 页访问不了 http 的 `127.0.0.1`
   （混合内容 + Private Network Access），所以桥自己伺服 `app/`，前端是
   「本机桥 > Worker > Demo」三态。
-- `[L]` 桥一致性门禁（11 条）：提示词与 `[K]` **同源**（都从 `worker/src/prompt.js` 读，
+- `[L]` 桥一致性门禁（23 条）：提示词与 `[K]` **同源**（都从 `worker/src/prompt.js` 读，
   不出现第二份真值源）、`cordis.patch.yml` 与 `index.js` 端口不得漂移、
   六个安全件（Host 校验 / bearer / 随机 token / 丢弃客户端 system 等）必须全在、
   locale 元数据非模板、桥源码 0 密钥、前端三态与优先级、SW 把新接口排除缓存。
@@ -240,12 +240,47 @@ cd C:/ai/agent/cardtest
   PWA 外壳 6 个文件全 200 → 错码 401、正确码换到 43 字符会话令牌 → 用会话令牌
   `/v1/models` 200 → `POST /v1/chat/completions` 问「只回答两个字：收到」得 **`收到`**
   （`model=deepseek-v4.1-flash`）→ 行为验证问角色名答 **`行旅`**（提示词确实注入）。
-  无凭据仍 401。`bridge/test.mjs` **PASS 34 / FAIL 0**（新增 16 条公网用例）。
-- **`[L]` 从 11 条扩到 16 条**，新增 5 条全是公网安全看门狗。反向验证又抓到
+  无凭据仍 401。`bridge/test.mjs` 当时 **PASS 34 / FAIL 0**（新增公网用例 16 条；
+  后续第九层补到 43 条）。
+- **`[L]` 从 11 条扩到 18 条**（当时文档写的是「16 条」，实测 `check_bridge()` 是 18 条 ——
+  见第九层的计数订正），新增的里逐条点名的 5 条全是公网安全看门狗。反向验证又抓到
   2 个**我自己写弱了的断言**：① 「配对限流」原只查 `PAIR_MAX_FAILURES` 常量存在，
   把它改成 `1e9`（等于无限流）依然通过 → 补「数值必须落在 1–100」；
   ② 同一条只查常量名，删掉真正的 429 分支也不报 → 补「比较式 + 429 实调用」。
   这说明**断言只查「名字在不在」几乎总是假的**。
+
+**2026-11-09 补的第九层（PASS 247 → 252，`[L]` 18 → 23）：隧道域名改成「后缀白名单」**。
+第八层的 Host 白名单只能一个个域名写死 `publicHosts`，而 `cloudflared` 每次重启都换一个
+随机域名（`xxxx.lhr.life`），写不过来。于是桥加了配置 `publicHostSuffixes`：放行
+**恰好一层子域 + 指定后缀**的域名（写 `["lhr.life"]` 就放行 `xxxx.lhr.life`）。
+安全上它比 `publicHosts` 更容易写错，所以 `[L]` 补了 5 条看门狗：
+
+- **后缀白名单锚定**：`matchesHostSuffix()` 必须用 `^[a-z0-9-]+\.<转义后缀>$` 构造正则 ——
+  即 `new RegExp(\`^[a-z0-9-]+\\\\.${escapeRegExp(suffix)}$\`)`，**函数体内不许出现裸
+  `endsWith(suffix)`**。理由：`'evil-lhr.life'.endsWith('lhr.life')` 为真，裸后缀比对等于
+  「谁能注册 `xxx.lhr.life` 谁就能冒充」；不过 `escapeRegExp` 则后缀里的 `.` 变通配、
+  `xxx.lhrXlife` 也会放行。**注意这条必须只 grep 函数体**：文件里 :483 的注释正好写着
+  「不用 `endsWith`」，整文件 grep 会把注释当代码（这条是踩过的假绿）。
+- **后缀接进 Host 判定**：`isPublicHost()` 要在 `publicAccess` 总开关之后、`publicHosts`
+  精确匹配之外，真的 `return matchesHostSuffix(name, guard.publicHostSuffixes)`；
+  改成 `return false` 立刻 FAIL（光有漂亮函数、没人调用是典型的「实现存在但没接线」）。
+- **后缀配置归一化**：`publicHostSuffixes` 读入后 trim / 小写 / 去首尾点，并被
+  `/^[a-z0-9-]+(\.[a-z0-9-]+)+$/` 挡掉单段与非法项，结果进 `guard`。`["life"]` 这种单段后缀
+  等于放开整个 `.life` TLD，必须被忽略。
+- **默认留空**：`cordis.patch.yml` 里 `publicHostSuffixes` 默认 `[]` —— 安全默认，
+  要放行隧道必须显式填，用完清空。
+- **判定器活体**：把正确实现和 7 个错值样例（裸 `endsWith` / `includes` 换皮 / 缺 `^` /
+  缺 `$` / 没过 `escapeRegExp` / 多层 label 放行 / 不拦单段）喂给同一个判定器，必须
+  「好的判过、坏的全判死」。**没有这一条，判定函数本身写死也会显示全绿**。
+- 反向验证：7 处注入（裸 `endsWith` / `${suffix}` 不转义 / 去掉 `$` / 删单段 skip /
+  `isPublicHost` 不调用 / 过滤正则放宽 / yml 默认填 `[lhr.life]`）**各 exit 1 且只命中
+  对应那一条**，还原后三份 bridge 文件 SHA256 逐一核对一致、再跑 exit 0（PASS 252）。
+- **顺带订正一处文档账目**：文档此前写「`[L]` 16 条」，实测 `check_bridge()` 当时是 **18 条**
+  （第八层实际加了 7 条而非 5 条，逐条点名的只有 5 条）。本轮按**实际计数**改为 18 → 23，
+  不再沿用 16 这个错数。
+- 同一轮 `bridge/test.mjs` 也补了后缀白名单用例，从 34 条涨到 **43 条**（`await test(` 计数，
+  其中 9 条是 `publicHostSuffixes`）。**这一条本轮未执行验证** —— 按分工 `bridge/` 已冻结、
+  由另一位协作者跑过；本文档只记录静态计数。
 
 **2026-11-05 加 CI 门禁**：上面这套自检再好用，也只在本地、只在人记得跑的时候生效。
 新增 `.github/workflows/regress.yml`，push / PR 自动跑 `regress.py` 当门禁并上传报告 artifact。

@@ -397,7 +397,7 @@ await test('sw.js 与 manifest 也同源可取（PWA 才能装）', async () => 
 const PUB_PORT = PORT + 1
 const PUB_HOST = '127.0.0.1'
 const pub = makeCtx({ selection: { provider: 'workbuddy', model: 'deepseek-v4.1-flash', reasoningEffort: 'high' } })
-apply(pub.ctx, { host: PUB_HOST, port: PUB_PORT, fallbackPorts: [], publicAccess: true, allowQuickTunnel: true, publicHosts: [] })
+apply(pub.ctx, { host: PUB_HOST, port: PUB_PORT, fallbackPorts: [], publicAccess: true, allowQuickTunnel: true, publicHosts: [], publicHostSuffixes: [] })
 const pubUp = await waitForPort(60, PUB_PORT)
 assert.equal(pubUp, true, '公网模式实例没有起来')
 
@@ -541,6 +541,106 @@ await test('publicAccess=false：loopback 的 /bridge-info.json 不含配对码'
   assert.equal(res.json?.pairCode, undefined)
 })
 
+/* publicHostSuffixes：给 localhost.run 这类「后缀固定、前缀随机」的隧道用 */
+const SUF_PORT = PORT + 3
+const SUF_HOST = 'sample-tunnel.lhr.life'
+const suf = makeCtx({ selection: { provider: 'workbuddy', model: 'deepseek-v4.1-flash' } })
+apply(suf.ctx, {
+  host: '127.0.0.1',
+  port: SUF_PORT,
+  fallbackPorts: [],
+  publicAccess: true,
+  allowQuickTunnel: true,
+  publicHosts: [],
+  publicHostSuffixes: ['lhr.life'],
+})
+assert.equal(await waitForPort(60, SUF_PORT), true, 'publicHostSuffixes 实例没起来')
+
+await test('publicHostSuffixes：【lhr.life】时 xxx.lhr.life 放行，且公网侧仍不下发 token/配对码', async () => {
+  const health = await request({ path: '/healthz', port: SUF_PORT, headers: { host: SUF_HOST } })
+  assert.equal(health.status, 200, health.text)
+  const res = await request({ path: '/bridge-info.json', port: SUF_PORT, headers: { host: SUF_HOST } })
+  assert.equal(res.status, 200, res.text)
+  assert.equal(res.json?.auth, 'pair')
+  assert.equal(res.json?.token, undefined, '后缀白名单只改 Host 放行，绝不能顺带下发主 token')
+  assert.equal(res.json?.pairCode, undefined)
+})
+
+await test('publicHostSuffixes：【lhr.life】时 /v1/* 仍必须带凭据（放行 Host ≠ 放行匿名）', async () => {
+  const anonymous = await request({
+    path: '/v1/models', port: SUF_PORT, headers: { host: SUF_HOST },
+  })
+  assert.equal(anonymous.status, 401, anonymous.text)
+  const forged = await request({
+    path: '/v1/models', port: SUF_PORT, headers: { host: SUF_HOST, authorization: 'Bearer deadbeef' },
+  })
+  assert.equal(forged.status, 401)
+  const authed = await request({
+    path: '/v1/models',
+    port: SUF_PORT,
+    headers: {
+      host: SUF_HOST,
+      authorization: `Bearer ${(await request({ path: '/bridge-info.json', port: SUF_PORT })).json?.token}`,
+    },
+  })
+  assert.equal(authed.status, 200, authed.text)
+})
+
+await test('publicHostSuffixes：【lhr.life】时 evil-lhr.life 不放行（后缀必须锚定在 label 边界）', async () => {
+  const res = await request({ path: '/healthz', port: SUF_PORT, headers: { host: 'evil-lhr.life' } })
+  assert.equal(res.status, 403, '裸 endsWith 会把 evil-lhr.life 当子域放进来')
+})
+
+await test('publicHostSuffixes：【lhr.life】时多一层子域 a.b.lhr.life 不放行（只放单层）', async () => {
+  const res = await request({ path: '/healthz', port: SUF_PORT, headers: { host: 'a.b.lhr.life' } })
+  assert.equal(res.status, 403)
+})
+
+await test('publicHostSuffixes：【lhr.life】时别的后缀 lhr.life.evil.com 不放行', async () => {
+  const res = await request({ path: '/healthz', port: SUF_PORT, headers: { host: 'lhr.life.evil.com' } })
+  assert.equal(res.status, 403)
+})
+
+await test('publicHostSuffixes：【lhr.life】时 trycloudflare 规则不受影响（两条路各管各的）', async () => {
+  const ok = await request({ path: '/healthz', port: SUF_PORT, headers: { host: 'x.trycloudflare.com' } })
+  assert.equal(ok.status, 200, ok.text)
+  const bad = await request({ path: '/healthz', port: SUF_PORT, headers: { host: 'evil-trycloudflare.com' } })
+  assert.equal(bad.status, 403)
+})
+
+await test('publicHostSuffixes:[] 时 xxx.lhr.life 仍 403（默认关闭）', async () => {
+  const res = await request({ path: '/healthz', port: PUB_PORT, headers: { host: SUF_HOST } })
+  assert.equal(res.status, 403, 'PUB_PORT 实例 publicHostSuffixes 为空，不应放行 lhr.life')
+})
+
+/* 单段后缀 = 一句放开整个 TLD，必须在入口就被丢掉 */
+const BAD_PORT = PORT + 4
+const bad = makeCtx({ selection: { provider: 'workbuddy', model: 'deepseek-v4.1-flash' } })
+apply(bad.ctx, {
+  host: '127.0.0.1',
+  port: BAD_PORT,
+  fallbackPorts: [],
+  publicAccess: true,
+  allowQuickTunnel: false,
+  publicHosts: [],
+  publicHostSuffixes: ['life', '.lhr.life.'],
+})
+assert.equal(await waitForPort(60, BAD_PORT), true, 'publicHostSuffixes 净化实例没起来')
+
+await test('publicHostSuffixes：单段后缀 "life" 被忽略，xxx.life 不放行（不放开整个 TLD）', async () => {
+  const res = await request({ path: '/healthz', port: BAD_PORT, headers: { host: 'anything.life' } })
+  assert.equal(res.status, 403, '["life"] 等于放开所有 .life 域名，必须被过滤掉')
+})
+
+await test('publicHostSuffixes：前后多余的点被去掉后仍按锚定语义匹配', async () => {
+  const ok = await request({ path: '/healthz', port: BAD_PORT, headers: { host: 'x.lhr.life' } })
+  assert.equal(ok.status, 200, ok.text)
+  const badHost = await request({ path: '/healthz', port: BAD_PORT, headers: { host: 'evillhr.life' } })
+  assert.equal(badHost.status, 403)
+})
+
+bad.dispose()
+suf.dispose()
 off.dispose()
 pub.dispose()
 

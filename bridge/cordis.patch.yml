@@ -30,3 +30,12 @@
         allowQuickTunnel: true
         # 若用固定域名的命名隧道，把域名写在这里（小写，不含协议与端口）。
         publicHosts: []
+        # 域名**后缀**白名单，给「后缀固定、前缀随机」的隧道用 —— 典型是
+        # localhost.run，域名形如 `xxxx.lhr.life`，每次连接都可能变，没法预先
+        # 写进 publicHosts。写 ["lhr.life"] 就放行任何 `<单层子域>.lhr.life`；
+        # 匹配锚定后缀，`evil-lhr.life` 不会过。
+        #
+        # 取舍：后缀越短越宽，可被撞名的风险越大（`["life"]` 这种单段后缀
+        # 等于放开整个 TLD，代码会直接忽略）。只填自己确实在用的服务，
+        # 用完就清空；不要为了图方便留一个宽后缀在这里。
+        publicHostSuffixes: []

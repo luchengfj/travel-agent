@@ -25,7 +25,7 @@ GitHub Pages 是 `https://`，本机桥是 `http://127.0.0.1`。浏览器会同�
 | 措施 | 说明 |
 |---|---|
 | 只监听 loopback | 默认 `127.0.0.1:8789`，失败依次退到 8794/8795/8796 |
-| Host 头校验 | 不是 loopback（或未在公网白名单里）一律 403，挡 DNS rebinding |
+| Host 头校验 | 不是 loopback（或未在公网白名单 `publicHosts` / `publicHostSuffixes` / quick tunnel 规则里）一律 403，挡 DNS rebinding |
 | bearer 鉴权 | 所有 `/v1/*` 需 `Authorization: Bearer <token>` |
 | token 每进程随机 | `randomBytes(32)`，不落盘，重启即失效 |
 | 引导端点不发 CORS | `/bridge-info.json` 只同源可读，别的网站拿不到 token |
@@ -41,9 +41,18 @@ GitHub Pages 是 `https://`，本机桥是 `http://127.0.0.1`。浏览器会同�
 
 **打开它要求下面两条同时成立，缺一不可：**
 
-1. **Host 白名单**：只有 `publicHosts` 显式列出的域名、或 `allowQuickTunnel: true`
-   时匹配 `^[a-z0-9-]+\.trycloudflare\.com$`（精确一层子域，`evil-trycloudflare.com`
-   不放行）的 Host 才被接受。其余的仍然 403。
+1. **Host 白名单**：只有下面三种 Host 被接受，其余一律 403：
+   - `publicHosts` 里**精确**列出的域名；
+   - `publicHostSuffixes` 里**后缀**命中的域名 —— 恰好一层子域 + 该后缀，如填
+     `["lhr.life"]` 就是放行 `xxxx.lhr.life`（锚定在 label 边界：`evil-lhr.life`、
+     `a.b.lhr.life`、`xxxx.lhr.life.attacker.com` 都不放行；单段后缀如 `["life"]`
+     等于放开整个 TLD，会被忽略）；
+   - `allowQuickTunnel: true` 时匹配 `^[a-z0-9-]+\.trycloudflare\.com$`（同样精确一层子域，
+     `evil-trycloudflare.com` 不放行）。
+
+   `publicHostSuffixes` 是为 `cloudflared` quick tunnel 准备的：它的域名每次重启都换
+   （`xxxx.lhr.life`），没法预先写进 `publicHosts`；但后缀清单仍要显式填、用完清空，
+   **默认是 `[]`**（即只认 loopback + `publicHosts` + quick tunnel 规则）。
 2. **主 token 不出公网**：公网侧 `/bridge-info.json` 只回元信息 + `auth:'pair'`，
    **不下发 token、也不下发配对码**。手机必须先用 **6 位配对码**调 `POST /pair`
    换一张**会话令牌**（30 天 TTL，进程重启全失效）。
@@ -60,6 +69,7 @@ config:
   publicAccess: true      # 默认 false；改回 false 即完全退回「只认 loopback」
   allowQuickTunnel: true  # quick tunnel 域名每次变，无法预写进 publicHosts
   publicHosts: []         # 固定域名的命名隧道写这里（小写、不含协议端口）
+  publicHostSuffixes: []  # 后缀白名单：填 ["lhr.life"] 放行 xxxx.lhr.life；默认空
 ```
 
 ### 手机接入步骤
@@ -104,6 +114,7 @@ config:
         publicAccess: false    # 想给手机用才改成 true
         allowQuickTunnel: false
         publicHosts: []
+        publicHostSuffixes: []   # 后缀白名单，如 ["lhr.life"]；单段后缀会被忽略
 ```
 
 `provider` / `model` 留空即跟随 `agent-default-model`，这是推荐配置——换模型时
@@ -112,12 +123,16 @@ config:
 ## 测试
 
 ```bash
-node bridge/test.mjs     # 34 个用例，全 mock ctx.llm，不联网
+node bridge/test.mjs     # 43 个用例，全 mock ctx.llm，不联网
 ```
 
-含 16 条公网模式用例：公网侧不下发 token/配对码、`evil-trycloudflare.com` 不放行、
-错码 401 不回显正确码、会话令牌 ≠ 主 token、配对后能真正对话、超预算 429、
-`publicAccess=false` 时 `/pair` 404 且公网 Host 一律 403。
+含 25 条公网模式 / 配对 / 后缀白名单用例：公网侧不下发 token/配对码、
+`evil-trycloudflare.com` 不放行、错码 401 不回显正确码、会话令牌 ≠ 主 token、
+配对后能真正对话、超预算 429、`publicAccess=false` 时 `/pair` 404 且公网 Host 一律 403；
+以及 `publicHostSuffixes` 9 条 —— `["lhr.life"]` 时 `xxx.lhr.life` 放行但公网侧仍不下发
+token/配对码、`/v1/*` 仍需凭据、`evil-lhr.life` / `a.b.lhr.life` / `lhr.life.evil.com`
+都不放行、`[]` 时默认拒绝、单段后缀 `"life"` 被忽略（不放开整个 TLD）、前后多余的点被
+归一化后仍按锚定语义匹配。
 
 注意：不要用 `node --test`，本机会 `spawn EPERM`。
 

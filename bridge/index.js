@@ -31,9 +31,11 @@
  * 手机访问不到 127.0.0.1，只能靠隧道（如 cloudflared）把公网域名指到本桥。
  * 但隧道会把 Host 变成公网域名，于是有两件事必须同时成立才安全：
  *
- *  1. **Host 白名单**：只有 `publicHosts` 里显式列出的域名、或（开着
- *     `allowQuickTunnel` 时）`*.trycloudflare.com` 才放行。光看「不是 loopback
- *     就拒绝」在公网模式下等价于把服务交给任何能构造 Host 头的人。
+ *  1. **Host 白名单**：只有 `publicHosts` 里显式列出的域名、`publicHostSuffixes`
+ *     里显式列出的域名后缀（`<一层子域>.<后缀>`，如 `lhr.life` 放行
+ *     `xxxx.lhr.life`）、或（开着 `allowQuickTunnel` 时）`*.trycloudflare.com`
+ *     才放行。光看「不是 loopback 就拒绝」在公网模式下等价于把服务交给任何
+ *     能构造 Host 头的人。
  *  2. **主 token 绝不出公网**。`/bridge-info.json` 在公网侧只回报元信息
  *     （`auth: 'pair'`），**不返回 token**；手机必须先拿「配对码」
  *     调 `POST /pair` 换一张**会话令牌**，`/v1/*` 接受主 token 或会话令牌。
@@ -122,6 +124,19 @@ export function apply(ctx, config = {}) {
   const publicHosts = Array.isArray(config.publicHosts)
     ? config.publicHosts.map((h) => String(h).trim().toLowerCase()).filter(Boolean)
     : []
+  /**
+   * 域名后缀白名单：放行 `<单层子域>.<suffix>`，给 localhost.run 这类
+   * 「后缀固定、前缀随机」的隧道用（如 `xxxx.lhr.life`）。
+   *
+   * 只接受至少两段的域名（`lhr.life`），拒绝 `life` / `com` 这种一句就把
+   * 整个 TLD 放开的写法；匹配一定**锚定**到结尾，`evil-lhr.life` 不是
+   * `lhr.life` 的子域，必须继续被挡。
+   */
+  const publicHostSuffixes = Array.isArray(config.publicHostSuffixes)
+    ? config.publicHostSuffixes
+      .map((s) => String(s).trim().toLowerCase().replace(/^\.+|\.+$/g, ''))
+      .filter((s) => /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(s))
+    : []
   /** 6 位配对码：只在 loopback 的 /bridge-info.json 与宿主日志里出现。 */
   const pairCode = String(randomInt(0, 1000000)).padStart(6, '0')
   /** 会话令牌 → 签发时间。手机配对后拿到它，重启桥即全部失效。 */
@@ -137,6 +152,7 @@ export function apply(ctx, config = {}) {
     publicAccess,
     allowQuickTunnel,
     publicHosts,
+    publicHostSuffixes,
     pairCode,
     sessions,
     SESSION_TTL_MS,
@@ -446,21 +462,45 @@ function hostNameOf(hostHeader) {
 
 /**
  * 公网 Host 白名单。**只有显式列出的域名才算**；`allowQuickTunnel` 额外放行
- * `*.trycloudflare.com`。注意 quick tunnel 的域名每次启动都变，所以无法预先
- * 枚举 —— 这正是需要一个显式开关的原因：默认关闭，且即使打开，公网侧也
- * 拿不到主 token，必须配对。
+ * `*.trycloudflare.com`，`publicHostSuffixes` 额外放行 `<单层子域>.<后缀>`
+ * （给 localhost.run 这种 `xxxx.lhr.life` 用）。注意 quick tunnel 的域名每次
+ * 启动都变，所以无法预先枚举 —— 这正是需要一个显式开关的原因：默认关闭，
+ * 且即使打开，公网侧也拿不到主 token，必须配对。
  */
 function isPublicHost(hostHeader, guard) {
   if (!guard?.publicAccess) return false
   const name = hostNameOf(hostHeader)
   if (!name) return false
   if (guard.publicHosts.includes(name)) return true
-  if (guard.allowQuickTunnel) {
-    // 只接受 `xxx.trycloudflare.com` 这一层子域，且必须是靠后缀判断，
-    // 否则 `evil-trycloudflare.com` 之类会被误放行。
-    return /^[a-z0-9-]+\.trycloudflare\.com$/.test(name)
+  // trycloudflare 的规则保持原样，不受 publicHostSuffixes 影响。
+  if (guard.allowQuickTunnel && /^[a-z0-9-]+\.trycloudflare\.com$/.test(name)) return true
+  return matchesHostSuffix(name, guard.publicHostSuffixes)
+}
+
+/**
+ * 后缀白名单匹配：`<一层 label>.<suffix>`，**锚定整串结尾**。
+ *
+ * 为什么不用 `name.endsWith(suffix)`：`'evil-lhr.life'.endsWith('lhr.life')`
+ * 为真，于是 attacker 只需注册 `evil-lhr.life` 就能冒名通过（和
+ * `evil-trycloudflare.com` 是同一个坑）。这里用正则要求后缀前必须紧跟一个
+ * `.`、且后缀前恰好只有一层 label，label 边界不可能落在 `-` 上。
+ *
+ * 单段后缀（如 `life`）直接跳过：那等于一句放开整个 TLD，不该由一个
+ * 「填个后缀省点事」的配置项悄悄打开。
+ */
+function matchesHostSuffix(name, suffixes) {
+  if (!Array.isArray(suffixes) || suffixes.length === 0) return false
+  for (const suffix of suffixes) {
+    if (typeof suffix !== 'string' || !suffix.includes('.')) continue
+    const pattern = new RegExp(`^[a-z0-9-]+\\.${escapeRegExp(suffix)}$`)
+    if (pattern.test(name)) return true
   }
   return false
+}
+
+/** 把后缀里的正则元字符转义成字面量（`.` 尤甚，否则会匹配任意字符）。 */
+function escapeRegExp(text) {
+  return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 function bearerOk(header, token) {

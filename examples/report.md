@@ -1,10 +1,10 @@
 # 旅行 Agent 回归报告
 
-- 生成时间：2026-11-09 20:16:59
+- 生成时间：2026-11-09 23:42:07
 - 工作目录：`C:\ai\agent`
 - 检查对象：`travel-agent.md` + `examples/` 四份基准 + `README.md` + 断言自检 + 事实台账 + 卡片静态健全 + 价格快照交叉 + 出境卡附加块 + 记账内核 + 行为回放用例 + 应用一致性(PWA/Worker) + 本机模型桥(bridge/)漂移
 
-**结论：✅ 全绿，未发现退化**（PASS 247 / FAIL 0 / INFO 2）
+**结论：✅ 全绿，未发现退化**（PASS 252 / FAIL 0 / INFO 2）
 
 | 状态 | 检查项 | 结果 |
 |---|---|---|
@@ -257,6 +257,11 @@
 | PASS | `桥·配对码只在服务端` | 配对码由服务端 randomInt 生成，前端只负责显示/输入，不自行生成 |
 | PASS | `桥·前端待配对态` | app.js 有 pairWithCode / pairNeeded / 真发出 POST pair，手机未配对时给出配对引导而不是退回 Demo |
 | PASS | `桥·公网默认关闭` | publicAccess 必须显式 === true 才打开（默认关；关掉即退回只认 loopback） |
+| PASS | `桥·后缀白名单锚定` | matchesHostSuffix 用 ^[a-z0-9-]+\.<转义后缀>$ 锚定匹配：xxxx.lhr.life 放行，evil-lhr.life / a.b.lhr.life / xxxx.lhr.life.attacker.com 全部拒绝 |
+| PASS | `桥·后缀接进 Host 判定` | isPublicHost 在 publicAccess 总开关之后、publicHosts 精确匹配之外真的调用 matchesHostSuffix(name, guard.publicHostSuffixes) |
+| PASS | `桥·后缀配置归一化` | publicHostSuffixes 读入后 trim/小写/去首尾点，并被 /^[a-z0-9-]+(\.[a-z0-9-]+)+$/ 挡掉单段与非法后缀，结果进了 guard |
+| PASS | `桥·后缀默认空` | cordis.patch.yml 里 publicHostSuffixes 默认留空 []（要放行必须显式填，用完清空） |
+| PASS | `桥·后缀判定器活体` | 判定器自证活着：正确实现判过，7 个错值样例（裸 endsWith / includes / 缺 ^ / 缺 $ / 没转义 / 多层 label / 不拦单段）全部判死 |
 
 ## 脚本没覆盖的部分（仍需人工/半自动）
 
