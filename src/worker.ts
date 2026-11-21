@@ -80,6 +80,33 @@ export default {
       return handleImageRequest(env, new URL(req.url));
     }
 
+    // 分享：POST 存攻略 → 短 ID；GET 取回
+    if (pathname === '/api/share' && req.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: CORS });
+    }
+    if (pathname === '/api/share' && req.method === 'POST') {
+      if (!env.CACHE) return Response.json({ error: 'KV 未配置，无法分享' }, { status: 503, headers: CORS });
+      let body: { plan?: unknown };
+      try {
+        body = (await req.json()) as { plan?: unknown };
+      } catch {
+        return Response.json({ error: '无效请求体' }, { status: 400, headers: CORS });
+      }
+      if (!body.plan || typeof body.plan !== 'object') {
+        return Response.json({ error: '缺少 plan' }, { status: 400, headers: CORS });
+      }
+      const id = Math.random().toString(36).slice(2, 8);
+      await env.CACHE.put(`share:${id}`, JSON.stringify(body.plan), { expirationTtl: 604_800 });
+      return Response.json({ id }, { headers: CORS });
+    }
+    if (pathname.startsWith('/api/share/') && req.method === 'GET') {
+      const id = pathname.slice('/api/share/'.length).replace(/[^a-z0-9]/gi, '');
+      if (!id || !env.CACHE) return Response.json({ error: '不存在' }, { status: 404, headers: CORS });
+      const raw = await env.CACHE.get(`share:${id}`);
+      if (!raw) return Response.json({ error: '分享不存在或已过期' }, { status: 404, headers: CORS });
+      return new Response(raw, { headers: { 'Content-Type': 'application/json; charset=utf-8', ...CORS } });
+    }
+
     // 其余全部交给静态资源（public/）
     if (env.ASSETS) return env.ASSETS.fetch(req);
     return new Response('静态资源绑定未配置', { status: 500 });

@@ -8,6 +8,8 @@ import { chat, extractJson } from './llm.ts';
 import * as amadeus from './amadeus.ts';
 import { tpConfigured, searchFlights as tpSearchFlights } from './travelpayouts.ts';
 import { fetchWvPrices } from './wikivoyage.ts';
+import { fetchWeather } from './weather.ts';
+import { getCurrency } from './currency.ts';
 import { searchTrains } from './trains.ts';
 import type { ChatMsg, Env, PriceItem, PriceSource, SSEEvent, TripPlan } from './types.ts';
 
@@ -131,7 +133,8 @@ ${poiContext || '（无）'}
   "price_summary": [
     { "category": "机票", "option": "NH956 往返", "price": "¥4,700（2人）", "source": "实时·Amadeus" }
   ],
-  "tips": ["下单顺序建议", "退改签注意事项", "省钱技巧"]
+  "tips": ["…"],
+  "packing": []
 }
 
 硬性规则：
@@ -140,7 +143,8 @@ ${poiContext || '（无）'}
 3. cost 只能引用【实时报价数据】中的数字，并注明口径（几人/几晚）；数据没有的写"以预订页为准"且 price_ref 用 "none"；估算价 price_ref 用 "estimate" 并在 cost 中带"估算"二字；Wikivoyage 社区参考价 price_ref 用 "wikivoyage" 并注明"参考价（可能滞后）"。price_ref 可选 amadeus|travelpayouts|wikivoyage|12306|estimate|none。严禁编造精确价格。
 4. estimated_total 必填且必须给出 min/max 区间和 note 口径：把【实时报价数据】中的交通往返、住宿每晚×晚数、门票合计逐项相加，餐费按每人每天 80~150 元预留；某类数据缺失就在 note 里写明"未计入"，绝不臆造。总花费与用户预算比较，若明显不够，在 tips 里给务实的调整方案（改交通方式/换住宿档次/错峰）。
 5. price_summary 必须覆盖已获取报价的全部类别（火车票/酒店/门票/机票哪些查到了就列哪些，不得遗漏），source 取：实时·Amadeus / 实时·Travelpayouts / 实时·12306 / 参考价·Wikivoyage / 估算 / 以预订页为准。
-6. tips 3~6 条，务实。全部中文；JSON 字符串内不得包含换行符。`;
+6. tips 3~6 条，务实；若提供了【目的地天气预报】，tips 必须包含一条穿衣/雨具建议。
+7. packing 必填：12~18 条行前打包清单，按类别组织（证件/电子/衣物/洗护/药品/其他），衣物数量结合天数与天气预报写具体数字（如"薄外套×1（夜间15°C）""内裤/袜子×4"），目的地特色物品也要写（如去日本带"零钱包硬币×1"）。全部中文；JSON 字符串内不得包含换行符。`;
 }
 
 /** 常用城市库：模型解析失败时的正则兜底 */
@@ -295,21 +299,14 @@ export async function runAgent(env: Env, history: ChatMsg[], emit: Emit): Promis
   const priceCtx: string[] = [];
   let poiContext = '';
   const tasks: Promise<void>[] = [];
-  let amadeusBannerShown = false;
 
-  const showAmadeusBanner = () => {
-    if (amadeusBannerShown) return;
-    amadeusBannerShown = true;
-    emit({
-      type: 'prices',
-      category: 'setup',
-      title: '⚠️ Amadeus 未配置',
-      source: 'none',
-      note: '价格查询已跳过。请按 README「配置 Amadeus」一节获取免费 API Key，填入 .dev.vars（本地）或 wrangler secret（线上）。',
-      items: [],
-    });
-  };
-
+  // 当地货币（出境游时前端显示双币）
+  try {
+    const cur = await getCurrency(env, params.destination_city);
+    if (cur) emit({ type: 'currency', currency: cur.currency, symbol: cur.symbol, ratePerCny: cur.ratePerCny });
+  } catch {
+    // 汇率获取失败不阻塞
+  }
   // 机票：优先 Amadeus（历史账号），其次 Travelpayouts（当前可注册）
   if (params.need_flight !== false && params.origin_iata && params.destination_iata) {
     const id = 'flights';
@@ -349,7 +346,6 @@ export async function runAgent(env: Env, history: ChatMsg[], emit: Emit): Promis
         } catch (e) {
           const detail = e instanceof Error ? e.message : '机票查询失败';
           emit({ type: 'step', id, label, status: 'error', detail });
-          if (e instanceof amadeus.AmadeusError && e.code === 'NOT_CONFIGURED') showAmadeusBanner();
         }
       })(),
     );
@@ -405,9 +401,8 @@ export async function runAgent(env: Env, history: ChatMsg[], emit: Emit): Promis
           } catch {
             // 忽略回退失败
           }
-          const detail = e instanceof amadeus.AmadeusError ? e.message : '酒店查询失败';
+          const detail = '暂无酒店参考价，请用下方 Booking 深链查询实时房价';
           emit({ type: 'step', id, label, status: 'error', detail });
-          if (e instanceof amadeus.AmadeusError && e.code === 'NOT_CONFIGURED') showAmadeusBanner();
         }
       })(),
     );
@@ -493,11 +488,7 @@ export async function runAgent(env: Env, history: ChatMsg[], emit: Emit): Promis
               } catch {
                 // 忽略回退失败
               }
-              const detail = e instanceof amadeus.AmadeusError ? e.message : '活动查询失败';
-              if (e instanceof amadeus.AmadeusError && e.code === 'NOT_CONFIGURED') {
-                showAmadeusBanner();
-              }
-              return detail;
+              return '暂无门票参考价，请用下方携程深链购票';
             }
             return undefined;
           })(),
@@ -514,6 +505,32 @@ export async function runAgent(env: Env, history: ChatMsg[], emit: Emit): Promis
           status: actErr ? 'error' : 'done',
           detail: actErr ?? (pois.length ? `拿到 ${pois.length} 个推荐景点` : undefined),
         });
+      })(),
+    );
+  }
+
+  // 天气预报（出发日期在预报窗口内时）
+  if (params.dest_lat !== undefined && params.dest_lng !== undefined && params.depart_date) {
+    const id = 'weather';
+    const label = '🌤 查询目的地天气';
+    tasks.push(
+      (async () => {
+        emit({ type: 'step', id, label, status: 'running' });
+        const days = params.return_date
+          ? Math.round((Date.parse(params.return_date) - Date.parse(params.depart_date!)) / 86_400_000) + 1
+          : 1;
+        const wx = await fetchWeather(env, params.dest_lat!, params.dest_lng!, params.depart_date!, days);
+        if (wx && wx.length) {
+          emit({ type: 'weather', items: wx });
+          emit({ type: 'step', id, label, status: 'done', detail: `${wx.length} 天预报` });
+          priceCtx.push(
+            `【目的地天气预报】\n${wx
+              .map((d) => `${d.date}: ${d.desc}，${d.min}~${d.max}°C，降水概率 ${d.precip}%`)
+              .join('\n')}`,
+          );
+        } else {
+          emit({ type: 'step', id, label, status: 'done', detail: '超出预报窗口，未获取' });
+        }
       })(),
     );
   }

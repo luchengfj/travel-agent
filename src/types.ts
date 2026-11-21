@@ -43,6 +43,8 @@ export type SSEEvent =
   | { type: 'question'; text: string }
   | { type: 'itinerary'; markdown: string }
   | { type: 'itinerary_json'; plan: TripPlan }
+  | { type: 'weather'; items: import('./weather.ts').WeatherDay[] }
+  | { type: 'currency'; currency: string; symbol: string; ratePerCny: number }
   | { type: 'error'; message: string }
   | { type: 'done' };
 
@@ -88,4 +90,6 @@ export interface TripPlan {
   days: PlanDay[];
   price_summary?: PlanPriceRow[];
   tips?: string[];
+  /** 行前打包清单（LLM 按目的地/天数/天气生成） */
+  packing?: string[];
 }

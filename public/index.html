@@ -179,6 +179,22 @@
   .plan-links { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
   .plan-links a { font-size: 13px; color: var(--brand1); text-decoration: none; border: 1px solid #e0e7ff; background: #fff; border-radius: 8px; padding: 6px 12px; }
   .plan-links a:hover { background: #eef2ff; }
+
+  .weather-box { border: 1px solid #e0f2fe; background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-radius: 16px; padding: 12px 16px; margin-bottom: 16px; animation: rise .35s ease both; }
+  .wx-title { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+  .wx-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+  .wx-day { flex: none; min-width: 80px; background: #fff; border-radius: 10px; padding: 8px 10px; text-align: center; box-shadow: 0 1px 4px rgba(30,27,75,.06); }
+  .wx-date { font-size: 12px; color: var(--sub); }
+  .wx-desc { font-size: 13px; margin: 2px 0; }
+  .wx-temp { font-size: 13.5px; font-weight: 700; color: var(--brand1); }
+  .wx-rain { font-size: 11px; color: #0284c7; }
+
+  .plan-packing { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 14px; padding: 12px 16px; margin-bottom: 12px; }
+  .plan-packing h4 { margin: 0 0 8px; color: #166534; font-size: 14px; }
+  .packing-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px; }
+  .packing-list li { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; background: #fff; border-radius: 8px; padding: 6px 10px; box-shadow: 0 1px 3px rgba(30,27,75,.05); cursor: pointer; }
+  .packing-list li.checked span { text-decoration: line-through; color: #9ca3af; }
+  .packing-list input[type="checkbox"] { margin-top: 2px; accent-color: #059669; }
   .plan-tips { background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; }
   .plan-tips h4 { margin: 0 0 8px; font-size: 14px; color: #92400e; }
   .plan-tips li { font-size: 13px; color: #78350f; margin: 4px 0; }
@@ -529,6 +545,10 @@
         L.push('| ' + (r.category || '') + ' | ' + (r.option || '') + ' | ' + (r.price || '') + ' | ' + (r.source || '') + ' |');
       });
     }
+    if (p.packing && p.packing.length) {
+      L.push('', '## 行前打包清单');
+      p.packing.forEach(function (t) { L.push('- [ ] ' + t); });
+    }
     if (p.tips && p.tips.length) {
       L.push('', '## 预订建议');
       p.tips.forEach(function (t) { L.push('- ' + t); });
@@ -551,7 +571,17 @@
 
     var ui = {
       root: m, steps: steps, prices: prices, qbox: qbox, err: err, md: md, planBox: planBox,
-      planEl: null, planMap: null, stepEls: {},
+      planEl: null, planMap: null, stepEls: {}, weather: null, currency: null,
+      // 汇率换算：把 "¥1,515" / "¥70 ~ ¥200" 追加当地货币近似值
+      cvt: function (text) {
+        if (!this.currency) return text;
+        var r = this.currency.ratePerCny, sym = this.currency.symbol;
+        return String(text).replace(/¥\s?([\d,]+(?:\.\d+)?)/g, function (m, n) {
+          var v = parseFloat(String(n).replace(/,/g, ''));
+          if (!isFinite(v)) return m;
+          return m + '≈' + Math.round(v * r).toLocaleString('zh-CN') + sym;
+        });
+      },
       upsertStep: function (ev) {
         var s = this.stepEls[ev.id];
         if (!s) {
@@ -598,8 +628,9 @@
               tEl.appendChild(a);
             }
             c.appendChild(tEl);
+            var selfUi = ui;
             if (it.subtitle) c.appendChild(el('div', 's', it.subtitle));
-            if (it.price) c.appendChild(el('div', 'p', it.price));
+            if (it.price) c.appendChild(el('div', 'p', selfUi.cvt(it.price)));
             if (it.tags && it.tags.length) {
               var tw = el('div', 'tags');
               it.tags.forEach(function (t) { tw.appendChild(el('span', 'tag', t)); });
@@ -646,6 +677,9 @@
           var et = (p.estimated_total.min ? money(p.estimated_total.min) : '?') + ' ~ ' + (p.estimated_total.max ? money(p.estimated_total.max) : '?');
           chips.appendChild(chip('📊 预计总花费', et));
         }
+        if (this.currency) {
+          chips.appendChild(chip('💱 汇率', '1元 ≈ ' + this.currency.ratePerCny.toFixed(1) + this.currency.symbol));
+        }
         heroLeft.appendChild(chips);
         heroFlex.appendChild(heroLeft);
         var heroImg = document.createElement('img');
@@ -657,6 +691,23 @@
         heroFlex.appendChild(heroImg);
         hero.appendChild(heroFlex);
         plan.appendChild(hero);
+
+        // 天气卡片（若已获取）
+        if (this.weather && this.weather.items && this.weather.items.length) {
+          var wxBox = el('div', 'weather-box');
+          wxBox.appendChild(el('div', 'wx-title', '🌤 出行期间天气'));
+          var wrow = el('div', 'wx-row');
+          this.weather.items.forEach(function (d) {
+            var w = el('div', 'wx-day');
+            w.appendChild(el('div', 'wx-date', d.date.slice(5)));
+            w.appendChild(el('div', 'wx-desc', d.desc));
+            w.appendChild(el('div', 'wx-temp', d.min + '~' + d.max + '°C'));
+            if (d.precip >= 30) w.appendChild(el('div', 'wx-rain', '☔ ' + d.precip + '%'));
+            wrow.appendChild(w);
+          });
+          wxBox.appendChild(wrow);
+          plan.appendChild(wxBox);
+        }
 
         // 地图
         var allPts = [];
@@ -703,7 +754,7 @@
             if (s.note) main.appendChild(el('div', 'seg-note', '💡 ' + s.note));
             seg.appendChild(main);
             var cost = el('div', 'seg-cost');
-            if (s.cost) cost.appendChild(el('div', 'c', s.cost));
+            if (s.cost) cost.appendChild(el('div', 'c', self.cvt(s.cost)));
             cost.appendChild(el('span', 'ref ref-' + (s.price_ref || 'none'), REF_LABEL[s.price_ref || 'none'] || ''));
             seg.appendChild(cost);
             segsBox.appendChild(seg);
@@ -752,6 +803,39 @@
           plan.appendChild(linksBox);
         }
 
+        // 行前打包清单（可勾选，进度存 localStorage）
+        if (p.packing && p.packing.length) {
+          var pack = el('div', 'plan-packing');
+          var packTitle = el('h4', '', '🎒 行前打包清单（点击勾选）');
+          pack.appendChild(packTitle);
+          var saved = [];
+          try { saved = JSON.parse(localStorage.getItem('packing:' + (p.title || '')) || '[]'); } catch (e) { saved = []; }
+          var ul = el('ul', 'packing-list');
+          var inputs = [];
+          function persist() {
+            var s = [];
+            inputs.forEach(function (c, i) { if (c.checked) s.push(i); });
+            try { localStorage.setItem('packing:' + (p.title || ''), JSON.stringify(s)); } catch (e) { /* 忽略 */ }
+          }
+          p.packing.forEach(function (item, i) {
+            var li = el('li');
+            var cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = saved.indexOf(i) >= 0;
+            if (cb.checked) li.className = 'checked';
+            cb.addEventListener('change', function () {
+              li.className = cb.checked ? 'checked' : '';
+              persist();
+            });
+            li.appendChild(cb);
+            li.appendChild(el('span', '', item));
+            inputs.push(cb);
+            ul.appendChild(li);
+          });
+          pack.appendChild(ul);
+          plan.appendChild(pack);
+        }
+
         // 预订建议
         if (p.tips && p.tips.length) {
           var tips = el('div', 'plan-tips');
@@ -797,6 +881,25 @@
           a.click();
           URL.revokeObjectURL(a.href);
         };
+        var bShare = btn('🔗 复制分享链接');
+        bShare.onclick = function () {
+          fetch('/api/share', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plan: p })
+          }).then(function (r) {
+            if (!r.ok) throw new Error('分享失败');
+            return r.json();
+          }).then(function (d) {
+            return navigator.clipboard.writeText(location.origin + '/?shared=' + d.id).then(function () {
+              bShare.textContent = '✅ 链接已复制（7天有效）';
+              setTimeout(function () { bShare.textContent = '🔗 复制分享链接'; }, 2500);
+            });
+          }).catch(function () {
+            bShare.textContent = '⚠️ 分享失败';
+            setTimeout(function () { bShare.textContent = '🔗 复制分享链接'; }, 2500);
+          });
+        };
         var bPrint = btn('🖨️ 打印 / 存 PDF');
         bPrint.onclick = function () {
           var pr = document.getElementById('printroot');
@@ -805,7 +908,7 @@
           document.body.classList.add('print-mode');
           window.print();
         };
-        actions.appendChild(bCopy); actions.appendChild(bMd); actions.appendChild(bHtml); actions.appendChild(bPrint);
+        actions.appendChild(bCopy); actions.appendChild(bMd); actions.appendChild(bHtml); actions.appendChild(bShare); actions.appendChild(bPrint);
         plan.appendChild(actions);
 
         this.planBox.appendChild(plan);
@@ -938,6 +1041,8 @@
       ui.steps.style.display = 'none';
     } else if (ev.type === 'itinerary_json') ui.setPlan(ev.plan);
     else if (ev.type === 'itinerary') ui.setItinerary(ev.markdown);
+    else if (ev.type === 'weather') ui.weather = ev;
+    else if (ev.type === 'currency') ui.currency = ev;
     else if (ev.type === 'error') ui.showError(ev.message);
   }
 
@@ -966,6 +1071,30 @@
     welcome.style.display = '';
   });
   input.focus();
+
+  // ---------- 分享视图：?shared=<id> 只读展示 ----------
+  var sharedId = new URLSearchParams(location.search).get('shared');
+  if (sharedId) {
+    welcome.style.display = 'none';
+    fetch('/api/share/' + encodeURIComponent(sharedId))
+      .then(function (r) {
+        if (!r.ok) throw new Error('not found');
+        return r.json();
+      })
+      .then(function (plan) {
+        welcome.style.display = 'none';
+        var ui = addAi();
+        ui.setPlan(plan);
+      })
+      .catch(function () {
+        welcome.style.display = '';
+        var m = el('div', 'msg ai');
+        var b = el('div', 'bubble');
+        b.appendChild(el('div', 'errline', '⚠️ 分享不存在或已过期（链接 7 天有效）'));
+        m.appendChild(b);
+        thread.appendChild(m);
+      });
+  }
 })();
 </script>
 </body>

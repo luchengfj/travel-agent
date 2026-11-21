@@ -115,10 +115,45 @@ async function handlePlan(req: IncomingMessage, res: ServerResponse): Promise<vo
   res.end();
 }
 
+// ---------- 分享（Node 内存版，重启丢失；Worker 版用 KV 持久 7 天） ----------
+const shareStore = new Map<string, { plan: unknown; exp: number }>();
+
 createServer((req, res) => {
   const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
   if (url.pathname === '/api/health') {
     json(res, { ok: true, runtime: 'node', amadeus: isConfigured(env), llm: llmMode(env) });
+    return;
+  }
+  if (url.pathname === '/api/share' && req.method === 'POST') {
+    void (async () => {
+      try {
+        const body = JSON.parse(await readBody(req)) as { plan?: unknown };
+        if (!body?.plan || typeof body.plan !== 'object') {
+          json(res, { error: '缺少 plan' }, 400);
+          return;
+        }
+        const id = Math.random().toString(36).slice(2, 8);
+        if (shareStore.size > 200) {
+          const first = shareStore.keys().next().value as string;
+          shareStore.delete(first);
+        }
+        shareStore.set(id, { plan: body.plan, exp: Date.now() + 7 * 86_400_000 });
+        json(res, { id });
+      } catch {
+        json(res, { error: '无效请求体' }, 400);
+      }
+    })();
+    return;
+  }
+  if (url.pathname.startsWith('/api/share/') && req.method === 'GET') {
+    const id = url.pathname.slice('/api/share/'.length).replace(/[^a-z0-9]/gi, '');
+    const entry = shareStore.get(id);
+    if (!entry || entry.exp < Date.now()) {
+      shareStore.delete(id);
+      json(res, { error: '分享不存在或已过期' }, 404);
+      return;
+    }
+    json(res, entry.plan);
     return;
   }
   if (url.pathname === '/api/img') {
