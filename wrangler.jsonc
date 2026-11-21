@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "travel-agent",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-01",
+  // 静态资源（前端聊天界面）
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  // Cloudflare Workers AI（默认 LLM，免费额度；本地 dev 调用它需要先 `wrangler login`）
+  "ai": {
+    "binding": "AI"
+  },
+  // 缓存 KV（Amadeus token / 报价缓存）
+  "kv_namespaces": [{ "binding": "CACHE", "id": "60b79919cd1842f3906c999f4dc1fbe3" }],
+  "observability": {
+    "enabled": true
+  }
+}

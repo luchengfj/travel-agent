@@ -1,0 +1,13 @@
+# 复制一份为 .dev.vars 供本地开发使用（该文件不要提交/上传）
+# Travelpayouts API Token（travelpayouts.com 后台 → Profile → API token；机票实时报价）
+TRAVELPAYOUTS_TOKEN=你的Token
+
+# Amadeus 免费 API（自助注册已关停，仅历史账号可用；可不填）
+# AMADEUS_CLIENT_ID=
+# AMADEUS_CLIENT_SECRET=
+
+# 可选：使用 OpenAI 兼容接口的 LLM（例如智谱 GLM），
+# 不填则默认使用 Cloudflare Workers AI（本地 dev 需要先 `npx wrangler login`）
+# LLM_API_KEY=
+# LLM_BASE_URL=https://open.bigmodel.cn/api/paas/v4
+# LLM_MODEL=glm-4-flash

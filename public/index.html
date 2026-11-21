@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>旅行规划 Agent · 实时攻略图</title>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<!-- Travelpayouts Drive 脚本：完成平台引导验证用（会话绑定 ID t=604426）；不想参与返佣计划可删除此行 -->
+<script async data-cmp-ab="2" src="https://emrld.ltd/NjA0NDI2.js?t=604426"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --bg: #f5f6fa;
+    --card: #ffffff;
+    --ink: #1f2430;
+    --sub: #6b7280;
+    --line: #e5e7eb;
+    --brand1: #4f46e5;
+    --brand2: #0ea5e9;
+    --ok: #059669;
+    --warn: #d97706;
+    --err: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: linear-gradient(135deg, var(--brand1), var(--brand2));
+    color: #fff;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    box-shadow: 0 2px 10px rgba(79, 70, 229, .25);
+  }
+  .brand { font-size: 18px; font-weight: 700; letter-spacing: .5px; }
+  .brand small { display: block; font-size: 12px; font-weight: 400; opacity: .85; margin-top: 2px; }
+  .hbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .pill {
+    font-size: 12px;
+    background: rgba(255,255,255,.18);
+    border: 1px solid rgba(255,255,255,.35);
+    border-radius: 999px;
+    padding: 4px 10px;
+    max-width: 70vw;
+  }
+  #newChat {
+    font-size: 13px;
+    border: 1px solid rgba(255,255,255,.5);
+    background: rgba(255,255,255,.15);
+    color: #fff;
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  #newChat:hover { background: rgba(255,255,255,.28); }
+
+  main { flex: 1; overflow-y: auto; padding: 20px 16px 28px; }
+  .wrap { max-width: 900px; margin: 0 auto; }
+
+  .welcome { text-align: center; margin-top: 8vh; }
+  .welcome h2 { font-size: 24px; margin: 0 0 18px; }
+  .chips { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .chip {
+    width: min(560px, 92vw);
+    text-align: left;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all .15s;
+    color: var(--ink);
+  }
+  .chip:hover { border-color: var(--brand1); box-shadow: 0 2px 12px rgba(79,70,229,.12); transform: translateY(-1px); }
+  .tip { color: var(--sub); font-size: 12px; margin-top: 18px; }
+
+  .msg { display: flex; margin: 14px 0; }
+  .msg.user { justify-content: flex-end; }
+  .bubble { max-width: 86%; border-radius: 14px; padding: 10px 14px; font-size: 14.5px; line-height: 1.65; }
+  .msg.user .bubble { background: var(--brand1); color: #fff; border-bottom-right-radius: 4px; white-space: pre-wrap; }
+  .msg.ai .bubble { background: var(--card); border: 1px solid var(--line); border-bottom-left-radius: 4px; width: 100%; max-width: 100%; }
+
+  .steps { margin: 4px 0 10px; }
+  .step { display: flex; align-items: baseline; gap: 8px; font-size: 13px; color: var(--sub); padding: 3px 0; }
+  .dot { width: 14px; text-align: center; flex: none; }
+  .step.running .dot { animation: pulse 1s infinite; }
+  .step.running .label { color: var(--brand1); }
+  .step.done .dot { color: var(--ok); }
+  .step.done .detail { color: var(--ink); }
+  .step.error .dot { color: var(--err); }
+  .step.error .detail { color: var(--err); }
+  @keyframes pulse { 50% { opacity: .3; } }
+  .detail { font-size: 12.5px; }
+
+  .pricegroup { margin: 10px 0; }
+  .pricegroup h4 { margin: 0 0 8px; font-size: 14px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+  .pcard { background: #fafbff; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 13px; }
+  .pcard .t { font-weight: 600; margin-bottom: 3px; }
+  .pcard .s { color: var(--sub); font-size: 12px; line-height: 1.5; }
+  .pcard .p { font-size: 16px; font-weight: 700; color: var(--brand1); margin-top: 6px; }
+  .pcard .tags { margin-top: 6px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag { font-size: 11px; background: #eef2ff; color: var(--brand1); border-radius: 4px; padding: 1px 6px; }
+  .badge { font-size: 11px; border-radius: 4px; padding: 1px 6px; font-weight: 600; }
+  .badge.amadeus, .ref-amadeus { background: #dcfce7; color: var(--ok); }
+  .badge.travelpayouts, .ref-travelpayouts { background: #ccfbf1; color: #0f766e; }
+  .badge.wikivoyage, .ref-wikivoyage { background: #fef9c3; color: #a16207; }
+  .badge.\31 2306, .ref-12306 { background: #dbeafe; color: #1d4ed8; }
+  .badge.estimate, .ref-estimate { background: #ffedd5; color: var(--warn); }
+  .badge.none, .ref-none { background: #f3f4f6; color: var(--sub); }
+  .note { font-size: 12px; color: var(--sub); margin-top: 6px; }
+  .note.warn { color: var(--warn); }
+  .setupbox { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #92400e; }
+
+  .errline { display: none; color: var(--err); font-size: 13px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; }
+  .errline:empty { display: none; }
+  .question { font-size: 14.5px; }
+
+  /* ---------- 攻略图 ---------- */
+  .plan { font-size: 14px; }
+  .plan-hero {
+    background: linear-gradient(135deg, #eef2ff, #e0f2fe);
+    border: 1px solid #e0e7ff;
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+  }
+  .hero-flex { display: flex; gap: 14px; align-items: stretch; }
+  .hero-left { flex: 1; min-width: 0; }
+  .hero-img { flex: none; width: 190px; height: 116px; object-fit: cover; border-radius: 10px; border: 1px solid #e0e7ff; background: #e0e7ff; }
+  .plan-hero h2 { margin: 0 0 6px; font-size: 20px; }
+  .plan-hero .summary { color: #4b5563; font-size: 13.5px; margin-bottom: 10px; }
+  .meta-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .mchip { font-size: 12.5px; background: #fff; border: 1px solid #e0e7ff; border-radius: 999px; padding: 4px 12px; color: var(--ink); }
+  .mchip b { color: var(--brand1); }
+
+  .plan-map-wrap { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; margin-bottom: 14px; background: #eef2f7; }
+  .plan-map { height: 360px; width: 100%; }
+  .map-note { font-size: 11.5px; color: var(--sub); background: #fff; padding: 6px 12px; border-top: 1px solid var(--line); }
+
+  .plan-day { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
+  .day-head { padding: 9px 14px; font-weight: 700; font-size: 14.5px; color: #fff; display: flex; gap: 10px; align-items: baseline; }
+  .day-head .dsub { font-size: 12px; font-weight: 400; opacity: .9; }
+  .seg { display: flex; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--line); align-items: stretch; background: #fff; }
+  .seg:first-of-type { border-top: none; }
+  .seg-time { flex: none; width: 88px; font-size: 12px; font-weight: 700; color: var(--brand1); padding-top: 4px; }
+  .seg-thumb {
+    flex: none; width: 64px; height: 64px; border-radius: 8px; overflow: hidden;
+    background: linear-gradient(135deg, #c7d2fe, #bae6fd);
+    color: #4f46e5; display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 700; background-size: cover; background-position: center;
+  }
+  .seg-thumb-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .seg-main { flex: 1; min-width: 0; }
+  .seg-title { font-weight: 600; font-size: 14px; }
+  .seg-place { color: var(--sub); font-size: 12.5px; margin-top: 2px; }
+  .seg-note { color: #92400e; font-size: 12px; margin-top: 3px; }
+  .seg-cost { flex: none; align-self: center; text-align: right; }
+  .seg-cost .c { font-weight: 700; font-size: 13.5px; }
+  .seg-cost .ref { display: inline-block; margin-top: 4px; font-size: 10.5px; border-radius: 4px; padding: 1px 6px; font-weight: 600; }
+
+  .plan-table { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+  .plan-table table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  .plan-table th, .plan-table td { border-bottom: 1px solid var(--line); padding: 8px 12px; text-align: left; }
+  .plan-table tr:last-child td { border-bottom: none; }
+  .plan-table th { background: #f3f4f6; font-size: 12.5px; color: var(--sub); }
+  .plan-links { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .plan-links a { font-size: 13px; color: var(--brand1); text-decoration: none; border: 1px solid #e0e7ff; background: #fff; border-radius: 8px; padding: 6px 12px; }
+  .plan-links a:hover { background: #eef2ff; }
+  .plan-tips { background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; }
+  .plan-tips h4 { margin: 0 0 8px; font-size: 14px; color: #92400e; }
+  .plan-tips li { font-size: 13px; color: #78350f; margin: 4px 0; }
+
+  .plan-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .plan-actions button, .tools button {
+    font-size: 12.5px;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--ink);
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .plan-actions button:hover, .tools button:hover { border-color: var(--brand1); color: var(--brand1); }
+
+  .md { font-size: 14px; line-height: 1.75; overflow-wrap: break-word; }
+  .md h1, .md h2, .md h3 { line-height: 1.4; margin: 14px 0 8px; }
+  .md h1 { font-size: 19px; border-bottom: 2px solid #e0e7ff; padding-bottom: 6px; }
+  .md h2 { font-size: 16.5px; }
+  .md h3 { font-size: 15px; }
+  .md table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 13px; }
+  .md th, .md td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; }
+  .md th { background: #f3f4f6; }
+  .md pre { background: #f6f8fa; padding: 10px; border-radius: 8px; overflow-x: auto; font-size: 12.5px; }
+  .md code { background: #f6f8fa; border-radius: 4px; padding: 1px 5px; font-size: 12.5px; }
+  .md ul, .md ol { padding-left: 20px; }
+  .md blockquote { margin: 8px 0; padding: 6px 12px; border-left: 3px solid var(--brand1); background: #eef2ff; color: #3730a3; border-radius: 0 8px 8px 0; }
+
+  footer { background: #fff; border-top: 1px solid var(--line); padding: 12px 16px; }
+  .inputbar { max-width: 900px; margin: 0 auto; display: flex; gap: 10px; align-items: flex-end; }
+  textarea#input {
+    flex: 1;
+    resize: none;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 14.5px;
+    font-family: inherit;
+    max-height: 140px;
+    outline: none;
+    line-height: 1.5;
+  }
+  textarea#input:focus { border-color: var(--brand1); box-shadow: 0 0 0 3px rgba(79,70,229,.12); }
+  #send {
+    border: none;
+    background: linear-gradient(135deg, var(--brand1), var(--brand2));
+    color: #fff;
+    font-size: 14.5px;
+    font-weight: 600;
+    border-radius: 12px;
+    padding: 11px 20px;
+    cursor: pointer;
+    flex: none;
+  }
+  #send:disabled { opacity: .5; cursor: not-allowed; }
+  .hint { max-width: 900px; margin: 6px auto 0; font-size: 11.5px; color: var(--sub); text-align: center; }
+
+  /* ---------- 打印 ---------- */
+  #printroot { display: none; }
+  body.print-mode header, body.print-mode footer, body.print-mode main { display: none !important; }
+  body.print-mode #printroot { display: block; background: #fff; padding: 12px; }
+  @media print {
+    body { background: #fff; }
+    .plan-map { height: 300px; }
+    .plan-actions, .tools { display: none !important; }
+  }
+
+  /* ============ 视觉升级层 ============ */
+  body {
+    background:
+      radial-gradient(1200px 500px at 85% -120px, rgba(79, 70, 229, .09), transparent 60%),
+      radial-gradient(900px 420px at -120px 30%, rgba(14, 165, 233, .08), transparent 60%),
+      var(--bg);
+  }
+  header {
+    background: linear-gradient(120deg, #1e1b4b 0%, #4338ca 48%, #0284c7 100%);
+    padding: 16px 22px;
+    box-shadow: 0 4px 18px rgba(30, 27, 75, .3);
+  }
+  .brand { font-size: 19px; }
+  .brand small { opacity: .8; }
+  #newChat { border-radius: 10px; backdrop-filter: blur(4px); transition: .15s; }
+  #newChat:hover { background: rgba(255, 255, 255, .3); transform: translateY(-1px); }
+
+  main { padding: 24px 16px 34px; }
+  .wrap { max-width: 960px; }
+  main::-webkit-scrollbar { width: 8px; }
+  main::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+  main::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+  .welcome h2 {
+    font-size: 30px;
+    background: linear-gradient(120deg, #4f46e5, #0ea5e9);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin: 0 0 24px;
+    letter-spacing: .5px;
+  }
+  .chip {
+    border-radius: 14px;
+    padding: 14px 18px;
+    font-size: 14.5px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, .06);
+  }
+  .chip::before { content: '🧳 '; }
+
+  .msg.ai .bubble {
+    border: none;
+    border-radius: 18px;
+    box-shadow: 0 4px 24px rgba(30, 27, 75, .08);
+    padding: 18px;
+  }
+  .msg.user .bubble {
+    border-radius: 16px 16px 4px 16px;
+    box-shadow: 0 2px 10px rgba(79, 70, 229, .3);
+  }
+
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .plan-hero, .plan-map-wrap, .plan-day, .plan-table, .plan-tips, .pricegroup, .step { animation: rise .35s ease both; }
+
+  .plan-hero {
+    border: none;
+    border-radius: 18px;
+    background: linear-gradient(135deg, #eef2ff, #e0f2fe 60%, #f0f9ff);
+    position: relative;
+    overflow: hidden;
+    padding: 20px 22px;
+    margin-bottom: 16px;
+  }
+  .plan-hero::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 5px;
+    background: linear-gradient(180deg, #4f46e5, #0ea5e9);
+  }
+  .plan-hero h2 { font-size: 22px; }
+  .plan-hero .summary { font-size: 14px; }
+  .mchip {
+    background: rgba(255, 255, 255, .78);
+    backdrop-filter: blur(6px);
+    border-color: #e0e7ff;
+    border-radius: 10px;
+    padding: 5px 12px;
+    box-shadow: 0 1px 4px rgba(30, 27, 75, .05);
+  }
+  .hero-img { border: none; box-shadow: 0 6px 20px rgba(30, 27, 75, .18); border-radius: 14px; }
+
+  .plan-map-wrap { border-radius: 18px; box-shadow: 0 4px 20px rgba(30, 27, 75, .09); border: none; margin-bottom: 16px; }
+  .plan-map { height: 400px; }
+
+  .plan-day { border: none; border-radius: 16px; box-shadow: 0 3px 16px rgba(30, 27, 75, .07); margin-bottom: 14px; }
+  .day-head { padding: 12px 18px; font-size: 15px; }
+  .segs { position: relative; }
+  .segs::before {
+    content: '';
+    position: absolute;
+    left: 143px;
+    top: 16px;
+    bottom: 16px;
+    width: 2px;
+    background: linear-gradient(180deg, #c7d2fe, #bae6fd);
+    border-radius: 2px;
+  }
+  .seg { transition: background .15s; background: #fff; }
+  .seg:hover { background: #f8faff; }
+  .seg-thumb { box-shadow: 0 0 0 3px #fff, 0 2px 10px rgba(30, 27, 75, .18); }
+  @media (max-width: 640px) { .segs::before { display: none; } }
+
+  .pcard {
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #eef0f6;
+    box-shadow: 0 2px 10px rgba(30, 27, 75, .06);
+    transition: transform .18s, box-shadow .18s, border-color .18s;
+  }
+  .pcard:hover { transform: translateY(-3px); box-shadow: 0 10px 26px rgba(30, 27, 75, .13); border-color: #c7d2fe; }
+  .pcard .p {
+    background: linear-gradient(120deg, #4f46e5, #0ea5e9);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-size: 18px;
+  }
+  .badge { border-radius: 999px; padding: 2px 9px; }
+
+  .plan-table { border: none; border-radius: 14px; box-shadow: 0 3px 16px rgba(30, 27, 75, .07); margin-bottom: 14px; overflow: hidden; }
+  .plan-table th { background: #f8faff; }
+  .plan-tips {
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    box-shadow: 0 3px 16px rgba(30, 27, 75, .06);
+    margin-bottom: 14px;
+  }
+  .plan-links a { border-radius: 10px; box-shadow: 0 1px 6px rgba(30, 27, 75, .06); transition: .15s; }
+  .plan-links a:hover { transform: translateY(-1px); }
+
+  footer { background: rgba(255, 255, 255, .92); backdrop-filter: blur(8px); }
+  textarea#input { border-radius: 14px; box-shadow: 0 2px 10px rgba(30, 27, 75, .05); }
+  #send {
+    border-radius: 14px;
+    padding: 12px 22px;
+    box-shadow: 0 4px 14px rgba(79, 70, 229, .35);
+    transition: transform .15s, box-shadow .15s;
+  }
+  #send:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(79, 70, 229, .45); }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">🧭 旅行规划 Agent
+    <small>实时生成攻略图 · 时间轴 + 路线图 + 实景图 + 价格表</small>
+  </div>
+  <div class="hbar">
+    <button id="newChat" title="清空对话重新开始">＋ 新对话</button>
+  </div>
+</header>
+
+<main id="chat">
+  <div class="wrap" id="thread">
+    <div class="welcome" id="welcome">
+      <h2>告诉我你的出行想法 ✈️</h2>
+      <div class="chips">
+        <button class="chip">11月28日-30日 北京去东京，2人，预算6000，喜欢美食和红叶</button>
+        <button class="chip">下周末从上海出发去杭州玩2天，坐高铁，想住西湖附近</button>
+        <button class="chip">12月初成都-重庆 3天2晚，想吃火锅、看熊猫，预算3000</button>
+      </div>
+      <p class="tip">生成完整攻略图：逐日时间轴 + 地图路线 + 景点实景图 + 实时价格表，可打印成 PDF 或下载分享。机票实时价来自 Travelpayouts（Trip.com 等报价源），火车票走 12306/估算，均标注来源；价格仅供参考。</p>
+    </div>
+  </div>
+</main>
+
+<div id="printroot"></div>
+
+<footer>
+  <div class="inputbar">
+    <textarea id="input" rows="1" placeholder="例如：12月10-14日 广州出发去北京2人，预算8000，想看雪和故宫"></textarea>
+    <button id="send">发送 ➤</button>
+  </div>
+  <div class="hint">Enter 发送 · Shift+Enter 换行 · 行程和报价仅供参考，下单前以预订页为准</div>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+  var thread = document.getElementById('thread');
+  var welcome = document.getElementById('welcome');
+  var input = document.getElementById('input');
+  var sendBtn = document.getElementById('send');
+  var PALETTE = ['#4f46e5', '#0ea5e9', '#059669', '#d97706', '#dc2626', '#7c3aed'];
+  var TYPE_ICON = { transport: '🚄', sight: '🏛️', food: '🍜', hotel: '🏨', shopping: '🛍️', rest: '☕' };
+  var REF_LABEL = { amadeus: '实时 · Amadeus', travelpayouts: '实时 · Travelpayouts', wikivoyage: '参考价 · Wikivoyage', 12306: '实时 · 12306', estimate: '估算', none: '以预订页为准' };
+  var state = { messages: [], busy: false, lastMd: '' };
+
+  // ---------- 工具 ----------
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+  function renderMd(md) {
+    if (window.marked && marked.parse) {
+      try { return marked.parse(md); } catch (e) { /* fallthrough */ }
+    }
+    return '<pre style="white-space:pre-wrap">' + md.replace(/</g, '&lt;') + '</pre>';
+  }
+  function scrollBottom() {
+    var main = document.getElementById('chat');
+    main.scrollTop = main.scrollHeight;
+  }
+  function money(n) {
+    return '¥' + Number(n).toLocaleString('zh-CN', { maximumFractionDigits: 0 });
+  }
+
+  // ---------- 实景图：经服务端 /api/img 代理（Wikidata/Commons，按类型决定兜底策略） ----------
+  var IMG_VER = 'v4'; // 图片策略升级时递增，避免浏览器旧缓存
+  function imgSrc(place, lat, lng, strict) {
+    var u = '/api/img?_v=' + IMG_VER + '&q=' + encodeURIComponent(place || '');
+    if (lat && lng) u += '&lat=' + lat + '&lng=' + lng;
+    if (strict) u += '&strict=1';
+    return u;
+  }
+
+  // ---------- 查实时价深链 ----------
+  function buildDeepLinks(p) {
+    var o = p.origin || {}, d = p.destination || {};
+    var date = p.depart_date || '';
+    var ret = p.return_date || '';
+    var adults = p.travelers || 1;
+    var links = [];
+    if (o.iata && d.iata && date) {
+      var fl = ret
+        ? 'https://flights.ctrip.com/online/list/round-' + o.iata + '-' + d.iata + '?depdate=' + date + '&arrdate=' + ret
+        : 'https://flights.ctrip.com/online/list/oneway-' + o.iata + '-' + d.iata + '?depdate=' + date;
+      links.push({ label: '✈️ 携程查机票', url: fl });
+    }
+    if (o.city && d.city && date) {
+      var fs = encodeURIComponent(o.city) + (o.train_code ? ',' + o.train_code : '');
+      var ts = encodeURIComponent(d.city) + (d.train_code ? ',' + d.train_code : '');
+      links.push({
+        label: '🚄 12306 查火车票',
+        url: 'https://kyfw.12306.cn/otn/leftTicket/init?linktypeid=dc&fs=' + fs + '&ts=' + ts + '&date=' + date + '&flag=N,N,N'
+      });
+    }
+    if (d.city && date) {
+      links.push({
+        label: '🏨 Booking 查酒店',
+        url: 'https://www.booking.com/searchresults.zh-cn.html?ss=' + encodeURIComponent(d.city) +
+          '&checkin=' + date + (ret ? '&checkout=' + ret : '') + '&group_adults=' + adults + '&no_rooms=1'
+      });
+    }
+    if (d.city) {
+      links.push({ label: '🎟️ 携程查门票/活动', url: 'https://you.ctrip.com/searchsite/?query=' + encodeURIComponent(d.city) });
+    }
+    return links;
+  }
+
+  // ---------- 攻略图渲染 ----------
+  function mdFromPlan(p) {
+    var L = ['# ' + (p.title || '旅行攻略'), ''];
+    if (p.summary) L.push(p.summary, '');
+    L.push('- 日期：' + (p.depart_date || '') + (p.return_date ? (' 至 ' + p.return_date) : ''));
+    L.push('- 人数：' + (p.travelers || 1));
+    L.push('- 预算：' + (p.budget_cny ? money(p.budget_cny) : '未指定'));
+    if (p.estimated_total && (p.estimated_total.min || p.estimated_total.max)) {
+      var t = '预计总花费：' + (p.estimated_total.min ? money(p.estimated_total.min) : '?') +
+        ' ~ ' + (p.estimated_total.max ? money(p.estimated_total.max) : '?');
+      if (p.estimated_total.note) t += '（' + p.estimated_total.note + '）';
+      L.push('- ' + t);
+    }
+    (p.days || []).forEach(function (d) {
+      L.push('', '## Day ' + d.day + (d.date ? ' · ' + d.date : '') + (d.theme ? ' · ' + d.theme : ''));
+      (d.segments || []).forEach(function (s) {
+        var line = '- **' + (s.time || '') + '** ' + s.title + (s.place ? '（' + s.place + '）' : '');
+        if (s.transport) line += ' · ' + s.transport;
+        if (s.cost) line += ' · ' + s.cost;
+        if (s.note) line += ' — ' + s.note;
+        L.push(line);
+      });
+    });
+    if (p.price_summary && p.price_summary.length) {
+      L.push('', '## 价格汇总', '', '| 类别 | 选项 | 价格 | 来源 |', '|---|---|---|---|');
+      p.price_summary.forEach(function (r) {
+        L.push('| ' + (r.category || '') + ' | ' + (r.option || '') + ' | ' + (r.price || '') + ' | ' + (r.source || '') + ' |');
+      });
+    }
+    if (p.tips && p.tips.length) {
+      L.push('', '## 预订建议');
+      p.tips.forEach(function (t) { L.push('- ' + t); });
+    }
+    return L.join('\n');
+  }
+
+  function addAi() {
+    var m = el('div', 'msg ai');
+    var b = el('div', 'bubble');
+    var steps = el('div', 'steps');
+    var prices = el('div', 'pricezone');
+    var qbox = el('div', 'question');
+    var err = el('div', 'errline');
+    var md = el('div', 'md');
+    var planBox = el('div', 'plan');
+    b.appendChild(steps); b.appendChild(prices); b.appendChild(qbox); b.appendChild(err); b.appendChild(planBox); b.appendChild(md);
+    m.appendChild(b);
+    thread.appendChild(m);
+
+    var ui = {
+      root: m, steps: steps, prices: prices, qbox: qbox, err: err, md: md, planBox: planBox,
+      planEl: null, planMap: null, stepEls: {},
+      upsertStep: function (ev) {
+        var s = this.stepEls[ev.id];
+        if (!s) {
+          s = el('div', 'step ' + ev.status);
+          var dot = el('span', 'dot');
+          var label = el('span', 'label', ev.label);
+          var detail = el('span', 'detail');
+          s.appendChild(dot); s.appendChild(label); s.appendChild(detail);
+          this.stepEls[ev.id] = { node: s, dot: dot, detail: detail };
+          this.steps.appendChild(s);
+        } else {
+          s.node.className = 'step ' + ev.status;
+        }
+        var d = this.stepEls[ev.id];
+        d.dot.textContent = ev.status === 'running' ? '⏳' : (ev.status === 'done' ? '✓' : '✗');
+        d.detail.textContent = ev.detail ? '（' + ev.detail + '）' : '';
+        scrollBottom();
+      },
+      addPrices: function (ev) {
+        var g = el('div', 'pricegroup');
+        if (ev.source === 'none') {
+          var box = el('div', 'setupbox');
+          box.appendChild(el('div', '', ev.title));
+          box.appendChild(el('div', 'note', ev.note || ''));
+          g.appendChild(box);
+        } else {
+          var h = el('h4');
+          h.textContent = ev.title + ' ';
+          var badge = el('span', 'badge ' + ev.source,
+            ev.source === 'amadeus' ? '实时 · Amadeus' : ev.source === 'travelpayouts' ? '实时 · Travelpayouts' : ev.source === 'wikivoyage' ? '参考价 · Wikivoyage' : ev.source === '12306' ? '实时 · 12306' : '估算');
+          h.appendChild(badge);
+          g.appendChild(h);
+          var cards = el('div', 'cards');
+          (ev.items || []).forEach(function (it) {
+            var c = el('div', 'pcard');
+            var tEl = el('div', 't', it.title);
+            if (it.url) {
+              var a = document.createElement('a');
+              a.href = it.url;
+              a.target = '_blank';
+              a.rel = 'noopener';
+              a.textContent = '预订 ↗';
+              a.style.cssText = 'font-size:12px;color:#4f46e5;margin-left:8px;text-decoration:none;';
+              tEl.appendChild(a);
+            }
+            c.appendChild(tEl);
+            if (it.subtitle) c.appendChild(el('div', 's', it.subtitle));
+            if (it.price) c.appendChild(el('div', 'p', it.price));
+            if (it.tags && it.tags.length) {
+              var tw = el('div', 'tags');
+              it.tags.forEach(function (t) { tw.appendChild(el('span', 'tag', t)); });
+              c.appendChild(tw);
+            }
+            cards.appendChild(c);
+          });
+          g.appendChild(cards);
+          if (ev.note) g.appendChild(el('div', 'note warn', 'ⓘ ' + ev.note));
+        }
+        this.prices.appendChild(g);
+        scrollBottom();
+      },
+      showError: function (msg) {
+        this.err.textContent = '⚠️ ' + msg;
+        this.err.style.display = 'block';
+      },
+      /* ---------- 攻略图 ---------- */
+      setPlan: function (p) {
+        var self = this;
+        if (this.planMap) { try { this.planMap.remove(); } catch (e) {} this.planMap = null; }
+        this.planBox.innerHTML = '';
+        this.md.innerHTML = '';
+        state.lastMd = mdFromPlan(p);
+        var plan = el('div', 'plan');
+        this.planEl = plan;
+
+        // Hero（左信息 + 右封面图）
+        var hero = el('div', 'plan-hero');
+        var heroFlex = el('div', 'hero-flex');
+        var heroLeft = el('div', 'hero-left');
+        heroLeft.appendChild(el('h2', '', '🗺️ ' + (p.title || '旅行攻略')));
+        if (p.summary) heroLeft.appendChild(el('div', 'summary', p.summary));
+        var chips = el('div', 'meta-chips');
+        function chip(label, value) {
+          var c = el('span', 'mchip', label + ' ');
+          c.appendChild(el('b', '', value));
+          return c;
+        }
+        chips.appendChild(chip('📅', (p.depart_date || '?') + (p.return_date ? ' ~ ' + p.return_date : '') + ((p.nights ? ' · ' + (p.nights + 1) + '天' + p.nights + '晚' : ''))));
+        chips.appendChild(chip('🧑', (p.travelers || 1) + ' 人'));
+        chips.appendChild(chip('💰 预算', p.budget_cny ? money(p.budget_cny) : '未指定'));
+        if (p.estimated_total && (p.estimated_total.min || p.estimated_total.max)) {
+          var et = (p.estimated_total.min ? money(p.estimated_total.min) : '?') + ' ~ ' + (p.estimated_total.max ? money(p.estimated_total.max) : '?');
+          chips.appendChild(chip('📊 预计总花费', et));
+        }
+        heroLeft.appendChild(chips);
+        heroFlex.appendChild(heroLeft);
+        var heroImg = document.createElement('img');
+        heroImg.className = 'hero-img';
+        heroImg.alt = (p.destination && p.destination.city) || '';
+        heroImg.loading = 'eager';
+        heroImg.src = imgSrc((p.destination && p.destination.city) || (p.days && p.days[0] && p.days[0].segments && p.days[0].segments[0] && p.days[0].segments[0].place) || '');
+        heroImg.onerror = function () { heroImg.remove(); };
+        heroFlex.appendChild(heroImg);
+        hero.appendChild(heroFlex);
+        plan.appendChild(hero);
+
+        // 地图
+        var allPts = [];
+        (p.days || []).forEach(function (d) {
+          (d.segments || []).forEach(function (s) {
+            if (s.lat && s.lng) allPts.push({ s: s, d: d });
+          });
+        });
+        var mapWrap = el('div', 'plan-map-wrap');
+        var mapDiv = el('div', 'plan-map');
+        mapWrap.appendChild(mapDiv);
+        mapWrap.appendChild(el('div', 'map-note', '📍 路线图：按天标色连线 · 底图 © OpenStreetMap · 实景图片来自 Wikimedia Commons（经本服务代理加载）'));
+        if (allPts.length && window.L) {
+          plan.appendChild(mapWrap);
+        }
+
+        // 每日时间轴
+        var daysBox = el('div', 'plan-days');
+        (p.days || []).forEach(function (d, di) {
+          var color = PALETTE[di % PALETTE.length];
+          var day = el('div', 'plan-day');
+          var head = el('div', 'day-head');
+          head.style.background = color;
+          head.appendChild(el('span', '', 'Day ' + d.day));
+          head.appendChild(el('span', 'dsub', (d.date ? d.date : '') + (d.theme ? ' · ' + d.theme : '')));
+          day.appendChild(head);
+          var segsBox = el('div', 'segs');
+          (d.segments || []).forEach(function (s) {
+            var seg = el('div', 'seg');
+            seg.appendChild(el('div', 'seg-time', s.time || ''));
+            var thumb = el('div', 'seg-thumb', s.place ? s.place.charAt(0) : (TYPE_ICON[s.type] || '📌'));
+            var imgEl = document.createElement('img');
+            imgEl.className = 'seg-thumb-img';
+            imgEl.loading = 'lazy';
+            imgEl.alt = s.place || s.title || '';
+            imgEl.src = imgSrc(s.place || s.title || '', s.lat, s.lng, s.type === 'food' || s.type === 'hotel' || s.type === 'shopping' || s.type === 'rest');
+            imgEl.onerror = function () { imgEl.remove(); };
+            thumb.appendChild(imgEl);
+            seg.appendChild(thumb);
+            var main = el('div', 'seg-main');
+            main.appendChild(el('div', 'seg-title', (TYPE_ICON[s.type] || '📌') + ' ' + (s.title || s.place || '')));
+            var placeLine = [s.place, s.transport].filter(Boolean).join(' · ');
+            if (placeLine) main.appendChild(el('div', 'seg-place', '📍 ' + placeLine));
+            if (s.note) main.appendChild(el('div', 'seg-note', '💡 ' + s.note));
+            seg.appendChild(main);
+            var cost = el('div', 'seg-cost');
+            if (s.cost) cost.appendChild(el('div', 'c', s.cost));
+            cost.appendChild(el('span', 'ref ref-' + (s.price_ref || 'none'), REF_LABEL[s.price_ref || 'none'] || ''));
+            seg.appendChild(cost);
+            segsBox.appendChild(seg);
+          });
+          day.appendChild(segsBox);
+          daysBox.appendChild(day);
+        });
+        plan.appendChild(daysBox);
+
+        // 价格汇总表
+        if (p.price_summary && p.price_summary.length) {
+          var tbl = el('div', 'plan-table');
+          var table = el('table');
+          var thead = el('thead');
+          var trh = el('tr');
+          ['类别', '选项', '价格', '来源'].forEach(function (h) { trh.appendChild(el('th', '', h)); });
+          thead.appendChild(trh); table.appendChild(thead);
+          var tbody = el('tbody');
+          p.price_summary.forEach(function (r) {
+            var tr = el('tr');
+            tr.appendChild(el('td', '', r.category || ''));
+            tr.appendChild(el('td', '', r.option || ''));
+            var tdP = el('td', '', r.price || '');
+            tdP.style.fontWeight = '600';
+            tdP.style.color = 'var(--brand1)';
+            tr.appendChild(tdP);
+            tr.appendChild(el('td', '', r.source || ''));
+            tbody.appendChild(tr);
+          });
+          table.appendChild(tbody); tbl.appendChild(table);
+          plan.appendChild(tbl);
+        }
+
+        // 查实时价深链
+        var links = buildDeepLinks(p);
+        if (links.length) {
+          var linksBox = el('div', 'plan-links');
+          links.forEach(function (l) {
+            var a = document.createElement('a');
+            a.href = l.url;
+            a.target = '_blank';
+            a.rel = 'noopener';
+            a.textContent = l.label;
+            linksBox.appendChild(a);
+          });
+          plan.appendChild(linksBox);
+        }
+
+        // 预订建议
+        if (p.tips && p.tips.length) {
+          var tips = el('div', 'plan-tips');
+          tips.appendChild(el('h4', '', '💡 预订建议'));
+          var ul = el('ul');
+          p.tips.forEach(function (t) { ul.appendChild(el('li', '', t)); });
+          tips.appendChild(ul);
+          plan.appendChild(tips);
+        }
+
+        // 操作按钮
+        var actions = el('div', 'plan-actions');
+        function btn(text) { return el('button', '', text); }
+        var bCopy = btn('📋 复制攻略(Markdown)');
+        bCopy.onclick = function () {
+          navigator.clipboard.writeText(mdFromPlan(p)).then(function () {
+            bCopy.textContent = '✅ 已复制';
+            setTimeout(function () { bCopy.textContent = '📋 复制攻略(Markdown)'; }, 1500);
+          });
+        };
+        var bMd = btn('⬇️ 行程.md');
+        bMd.onclick = function () {
+          var blob = new Blob([mdFromPlan(p)], { type: 'text/markdown;charset=utf-8' });
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = (p.title || '旅行攻略') + '.md';
+          a.click();
+          URL.revokeObjectURL(a.href);
+        };
+        var bHtml = btn('🖼️ 下载攻略.html（分享用）');
+        bHtml.onclick = function () {
+          var styles = Array.prototype.map.call(document.querySelectorAll('style'), function (s) { return s.outerHTML; }).join('\n');
+          var leafletCss = '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">';
+          var html = '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">' +
+            '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+            '<title>' + (p.title || '旅行攻略') + '</title>' + leafletCss + styles +
+            '</head><body style="background:#f5f6fa"><div style="max-width:900px;margin:20px auto;padding:0 16px">' +
+            plan.outerHTML + '</div></body></html>';
+          var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = (p.title || '旅行攻略') + '.html';
+          a.click();
+          URL.revokeObjectURL(a.href);
+        };
+        var bPrint = btn('🖨️ 打印 / 存 PDF');
+        bPrint.onclick = function () {
+          var pr = document.getElementById('printroot');
+          pr.innerHTML = '';
+          pr.appendChild(plan.cloneNode(true));
+          document.body.classList.add('print-mode');
+          window.print();
+        };
+        actions.appendChild(bCopy); actions.appendChild(bMd); actions.appendChild(bHtml); actions.appendChild(bPrint);
+        plan.appendChild(actions);
+
+        this.planBox.appendChild(plan);
+        window.addEventListener('afterprint', function () {
+          document.body.classList.remove('print-mode');
+          document.getElementById('printroot').innerHTML = '';
+        });
+
+        // 初始化地图（DOM 就绪后）
+        if (allPts.length && window.L) {
+          var map = L.map(mapDiv, { scrollWheelZoom: false });
+          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+            attribution: '© OpenStreetMap'
+          }).addTo(map);
+          (p.days || []).forEach(function (d, di) {
+            var color = PALETTE[di % PALETTE.length];
+            var dp = (d.segments || []).filter(function (s) { return s.lat && s.lng; });
+            dp.forEach(function (s) {
+              L.circleMarker([s.lat, s.lng], { radius: 9, color: '#fff', weight: 2.5, fillColor: color, fillOpacity: 1 })
+                .addTo(map)
+                .bindPopup('<b>Day ' + d.day + ' · ' + (s.time || '') + '</b><br>' + (s.title || s.place || ''));
+            });
+            if (dp.length >= 2) {
+              L.polyline(dp.map(function (s) { return [s.lat, s.lng]; }), { color: color, weight: 3, opacity: 0.85 }).addTo(map);
+            }
+          });
+          var bounds = allPts.map(function (x) { return [x.s.lat, x.s.lng]; });
+          map.fitBounds(bounds, { padding: [26, 26], maxZoom: 12 });
+          this.planMap = map;
+        }
+        scrollBottom();
+      },
+      setItinerary: function (markdown) { // 降级：文本模式
+        if (this.planMap) { try { this.planMap.remove(); } catch (e) {} this.planMap = null; }
+        this.planBox.innerHTML = '';
+        state.lastMd = markdown;
+        this.md.innerHTML = renderMd(markdown);
+        var tools = el('div', 'tools');
+        var btnCopy = el('button', '', '📋 复制行程');
+        btnCopy.onclick = function () {
+          navigator.clipboard.writeText(markdown).then(function () {
+            btnCopy.textContent = '✅ 已复制';
+            setTimeout(function () { btnCopy.textContent = '📋 复制行程'; }, 1500);
+          });
+        };
+        var btnDl = el('button', '', '⬇️ 下载 .md');
+        btnDl.onclick = function () {
+          var blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = '旅行行程.md';
+          a.click();
+          URL.revokeObjectURL(a.href);
+        };
+        tools.appendChild(btnCopy); tools.appendChild(btnDl);
+        this.md.appendChild(tools);
+        scrollBottom();
+      }
+    };
+    return ui;
+  }
+
+  // ---------- 发送与 SSE ----------
+  function setBusy(b) {
+    state.busy = b;
+    sendBtn.disabled = b;
+    input.disabled = b;
+  }
+
+  function send(text) {
+    if (state.busy || !text.trim()) return;
+    if (welcome) welcome.style.display = 'none';
+    state.messages.push({ role: 'user', content: text });
+    addUser(text);
+    input.value = '';
+    autoGrow();
+    var ui = addAi();
+    setBusy(true);
+    scrollBottom();
+
+    fetch('/api/plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: state.messages.slice(-10) })
+    }).then(function (res) {
+      if (!res.ok || !res.body) throw new Error('服务返回 ' + res.status + '，请确认服务已启动');
+      var reader = res.body.getReader();
+      var dec = new TextDecoder();
+      var buf = '';
+      function pump() {
+        return reader.read().then(function (r) {
+          if (r.done) return finish();
+          buf += dec.decode(r.value, { stream: true });
+          var parts = buf.split('\n\n');
+          buf = parts.pop();
+          parts.forEach(function (p) {
+            var line = p.split('\n').find(function (l) { return l.indexOf('data:') === 0; });
+            if (!line) return;
+            var ev;
+            try { ev = JSON.parse(line.slice(5).trim()); } catch (e) { return; }
+            handle(ev, ui);
+          });
+          return pump();
+        });
+      }
+      return pump();
+    }).catch(function (e) {
+      ui.showError(e.message || String(e));
+      finish();
+    });
+
+    function finish() {
+      setBusy(false);
+      input.focus();
+      if (state.lastMd) {
+        state.messages.push({ role: 'assistant', content: state.lastMd });
+        state.lastMd = '';
+      } else if (ui.qbox.textContent) {
+        state.messages.push({ role: 'assistant', content: ui.qbox.textContent });
+      }
+    }
+  }
+
+  function handle(ev, ui) {
+    if (ev.type === 'step') ui.upsertStep(ev);
+    else if (ev.type === 'prices') ui.addPrices(ev);
+    else if (ev.type === 'question') {
+      ui.qbox.textContent = '💬 ' + ev.text;
+      ui.steps.style.display = 'none';
+    } else if (ev.type === 'itinerary_json') ui.setPlan(ev.plan);
+    else if (ev.type === 'itinerary') ui.setItinerary(ev.markdown);
+    else if (ev.type === 'error') ui.showError(ev.message);
+  }
+
+  // ---------- 输入框 ----------
+  function addUser(text) {
+    var m = el('div', 'msg user');
+    m.appendChild(el('div', 'bubble', text));
+    thread.appendChild(m);
+  }
+  function autoGrow() {
+    input.style.height = 'auto';
+    input.style.height = Math.min(140, input.scrollHeight) + 'px';
+  }
+  input.addEventListener('input', autoGrow);
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input.value); }
+  });
+  sendBtn.addEventListener('click', function () { send(input.value); });
+  document.querySelectorAll('.chip').forEach(function (c) {
+    c.addEventListener('click', function () { send(c.textContent); });
+  });
+  document.getElementById('newChat').addEventListener('click', function () {
+    state.messages = []; state.lastMd = '';
+    thread.innerHTML = '';
+    thread.appendChild(welcome);
+    welcome.style.display = '';
+  });
+  input.focus();
+})();
+</script>
+</body>
+</html>
